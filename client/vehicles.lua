@@ -48,54 +48,73 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function SpawnVehicle(data, spawnCoords, heading)
-    local model = GetHashKey(data.model)
+    CreateThread(function()
+        local model = GetHashKey(data.model)
 
-    -- Model laden
-    if not IsModelValid(model) then
-        lib.notify({ title = "Fehler", description = "Ungültiges Fahrzeugmodel.", type = "error" })
-        return
-    end
+        if not IsModelValid(model) then
+            lib.notify({ title = "Fehler", description = "Ungültiges Fahrzeugmodel.", type = "error" })
+            return
+        end
 
-    lib.requestModel(model, 5000)
+        -- Model laden und warten bis es bereit ist
+        lib.requestModel(model, 10000)
+        while not HasModelLoaded(model) do Wait(50) end
 
-    local vehicle = CreateVehicle(
-        model, spawnCoords.x, spawnCoords.y, spawnCoords.z,
-        heading or 0.0, true, false
-    )
+        local vehicle = CreateVehicle(
+            model, spawnCoords.x, spawnCoords.y, spawnCoords.z,
+            heading or 0.0, true, false
+        )
 
-    -- Kennzeichen setzen
-    SetVehicleNumberPlateText(vehicle, data.plate)
+        -- Warten bis Fahrzeug existiert
+        while not DoesEntityExist(vehicle) do Wait(50) end
 
-    -- Upgrades anwenden
-    if data.upgrades and next(data.upgrades) then
-        ApplyUpgrades(vehicle, data.upgrades)
-    end
+        -- Mission Entity damit GTA es nicht despawnt
+        SetEntityAsMissionEntity(vehicle, true, true)
 
-    -- Tankstand
-    SetVehicleFuelLevel(vehicle, data.fuel or 100.0)
+        -- Kennzeichen setzen
+        SetVehicleNumberPlateText(vehicle, data.plate)
 
-    -- Spieler einsteigen
-    SetPedIntoVehicle(PlayerPedId(), vehicle, -1)
+        -- Upgrades anwenden
+        if data.upgrades and next(data.upgrades) then
+            ApplyUpgrades(vehicle, data.upgrades)
+        end
 
-    SetModelAsNoLongerNeeded(model)
+        -- Motor an
+        SetVehicleEngineOn(vehicle, true, true, false)
 
-    spawnedVehicle = {
-        entity   = vehicle,
-        plate    = data.plate,
-        id       = data.id,
-        upgrades = data.upgrades or {},
-    }
+        -- Spieler einsteigen
+        local ped = PlayerPedId()
+        SetPedIntoVehicle(ped, vehicle, -1)
 
-    -- Schadensüberwachung starten
-    VehicleModule.StartDamageThread()
+        -- Warten bis Spieler wirklich drin sitzt
+        local timeout = 0
+        while GetVehiclePedIsIn(ped, false) ~= vehicle and timeout < 50 do
+            Wait(100)
+            timeout = timeout + 1
+        end
 
-    lib.notify({
-        title       = "Fahrzeug geholt",
-        description = ("%s – Kennzeichen: %s"):format(data.model, data.plate),
-        type        = "success",
-    })
+        -- Tankstand setzen nachdem Spieler sitzt
+        local fuelLevel = data.fuel or 100.0
+        SetVehicleFuelLevel(vehicle, fuelLevel)
 
-    return vehicle
+        SetModelAsNoLongerNeeded(model)
+
+        spawnedVehicle = {
+            entity   = vehicle,
+            plate    = data.plate,
+            id       = data.id,
+            upgrades = data.upgrades or {},
+        }
+
+        -- Schadensüberwachung starten
+        VehicleModule.StartDamageThread()
+
+        lib.notify({
+            title       = "Fahrzeug geholt",
+            description = ("%s – Kennzeichen: %s"):format(data.model, data.plate),
+            type        = "success",
+        })
+    end)
 end
 
 -- ────────────────────────────────────────────────────────────
