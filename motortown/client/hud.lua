@@ -219,7 +219,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 function HudModule.Init()
-    AddEventHandler(MT.PLAYER_LOADED, function(data)
+    AddEventHandler("mt:player:ready", function(data)
         if not data then return end
 
         hudState.money    = data.money or 0

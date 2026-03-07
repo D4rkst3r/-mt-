@@ -199,7 +199,7 @@ end
 
 function BlipsModule.Init()
     -- Warten bis Spieler geladen ist
-    AddEventHandler(MT.PLAYER_LOADED, function()
+    AddEventHandler("mt:player:ready", function()
         CreateStaticBlips()
     end)
 end

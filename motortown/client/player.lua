@@ -39,11 +39,16 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnPlayerLoaded(data)
+    -- Guard: verhindert Infinite Loop
+    -- RegisterNetEvent hört auch auf lokale TriggerEvent-Aufrufe.
+    -- TriggerEvent("mt:player:ready") würde sonst → OnPlayerLoaded → Loop
+    if PlayerModule.loaded then return end
+
     PlayerModule.data   = data
     PlayerModule.loaded = true
 
-    -- Andere Module über fertigen Ladezustand informieren
-    TriggerEvent(MT.PLAYER_LOADED, data)
+    -- Lokaler Event mit EIGENEM Namen – NICHT MT.PLAYER_LOADED!
+    TriggerEvent("mt:player:ready", data)
 
     -- Willkommensnachricht via ox_lib notify
     lib.notify({
