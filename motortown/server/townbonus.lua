@@ -113,6 +113,18 @@ function TownBonusModule.OnDelivery(deliveryZoneKey)
 
     -- Koordinaten der Ablieferzone holen
     local coords = deliveryZone.coords
+
+    -- Poly-Zonen haben keine einzelne coords → Mittelpunkt berechnen
+    if not coords and deliveryZone.type == "poly" and deliveryZone.points then
+        local cx, cy = 0, 0
+        for _, p in ipairs(deliveryZone.points) do
+            cx = cx + p.x
+            cy = cy + p.y
+        end
+        local n = #deliveryZone.points
+        coords = { x = cx / n, y = cy / n }
+    end
+
     if not coords then return end
 
     -- Nearest Bonus-Zone finden

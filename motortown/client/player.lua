@@ -90,22 +90,20 @@ end
 -- ────────────────────────────────────────────────────────────
 
 function PlayerModule.Init()
+    -- RegisterNetEvent registriert den Handler für Server→Client Events.
+    -- AddEventHandler würde denselben Handler ein zweites Mal binden
+    -- und alle Callbacks doppelt feuern → hier NUR RegisterNetEvent.
     RegisterNetEvent(MT.PLAYER_LOADED, OnPlayerLoaded)
     RegisterNetEvent(MT.PLAYER_MONEY_UPDATE, OnMoneyUpdate)
     RegisterNetEvent(MT.PLAYER_XP_UPDATE, OnXPUpdate)
     RegisterNetEvent(MT.PLAYER_LEVEL_UP, OnLevelUp)
-
-    AddEventHandler(MT.PLAYER_LOADED, OnPlayerLoaded)
-    AddEventHandler(MT.PLAYER_MONEY_UPDATE, OnMoneyUpdate)
-    AddEventHandler(MT.PLAYER_XP_UPDATE, OnXPUpdate)
-    AddEventHandler(MT.PLAYER_LEVEL_UP, OnLevelUp)
 
     exports("GetPlayerData", PlayerModule.GetData)
     exports("IsPlayerLoaded", PlayerModule.IsLoaded)
     exports("GetLevel", PlayerModule.GetLevel)
     exports("GetMoney", PlayerModule.GetMoney)
 
-    print("[MT] Client PlayerModule initialisiert")
+    print("[MT] PlayerModule (Client) initialisiert")
 end
 
 _PlayerModule = PlayerModule
