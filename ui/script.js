@@ -1,245 +1,258 @@
-// ═══════════════════════════════════════════════════════════
-//  MotorTown HUD – script.js
-//  Verarbeitet NUI-Nachrichten vom Lua-Client
-// ═══════════════════════════════════════════════════════════
+// MotorTown HUD – Modern Pro
 
-// ── Tacho-Geometrie ─────────────────────────────────────────
-// Bogen: Start bei -110° (links), Ende bei +110° (rechts) → 220° gesamt
-// RPM 0–100 → -110° bis +110°
-const CX = 110,
-  CY = 110,
-  R = 88;
-const ARC_START_DEG = -110;
-const ARC_TOTAL_DEG = 220;
+// Tacho-Geometrie: 240° Bogen, CX=170, CY=155, R=120
+const CX = 170,
+  CY = 155,
+  R = 120;
+const D0 = -120,
+  DR = 240;
 
-function degToRad(d) {
-  return (d * Math.PI) / 180;
-}
-
-function polarToXY(deg, r) {
-  const rad = degToRad(deg - 90); // SVG 0° = oben
+function polar(deg, r) {
+  const rad = ((deg - 90) * Math.PI) / 180;
   return {
-    x: CX + r * Math.cos(rad),
-    y: CY + r * Math.sin(rad),
+    x: +(CX + r * Math.cos(rad)).toFixed(2),
+    y: +(CY + r * Math.sin(rad)).toFixed(2),
   };
 }
 
-function arcPath(fromDeg, toDeg, r) {
-  const start = polarToXY(fromDeg, r);
-  const end = polarToXY(toDeg, r);
-  const diff = toDeg - fromDeg;
-  const large = diff > 180 ? 1 : 0;
-  return `M ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`;
+function arcPath(from, to, r) {
+  const s = polar(from, r),
+    e = polar(to, r);
+  return `M${s.x} ${s.y} A${r} ${r} 0 ${to - from > 180 ? 1 : 0} 1 ${e.x} ${e.y}`;
 }
 
-// ── Skalenstriche beim Start generieren ─────────────────────
-function buildScaleMarks() {
-  const g = document.getElementById("scale-marks");
-  if (!g) return;
-  // 9 Hauptstriche (0–8 × 1000 RPM) + Nebenstriche
-  for (let i = 0; i <= 8; i++) {
-    const pct = i / 8;
-    const deg = ARC_START_DEG + pct * ARC_TOTAL_DEG;
-    const outer = polarToXY(deg, 88);
-    const inner = polarToXY(deg, 76);
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", outer.x.toFixed(1));
-    line.setAttribute("y1", outer.y.toFixed(1));
-    line.setAttribute("x2", inner.x.toFixed(1));
-    line.setAttribute("y2", inner.y.toFixed(1));
-    line.setAttribute("class", "scale-mark major");
-    g.appendChild(line);
-  }
-  // Kleine Zwischenstriche
-  for (let i = 0; i < 8; i++) {
-    for (let j = 1; j < 4; j++) {
-      const pct = (i + j / 4) / 8;
-      const deg = ARC_START_DEG + pct * ARC_TOTAL_DEG;
-      const outer = polarToXY(deg, 88);
-      const inner = polarToXY(deg, 82);
-      const line = document.createElementNS(
+// ── Skala aufbauen ─────────────────────────────────────────
+(function buildScale() {
+  const gm = document.getElementById("scale-g");
+  const gl = document.getElementById("scale-labels");
+  if (!gm) return;
+
+  for (let i = 0; i <= 10; i++) {
+    const deg = D0 + (i / 10) * DR;
+    const outer = polar(deg, 120);
+    const inner = polar(deg, 106);
+    const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    tick.setAttribute("x1", outer.x);
+    tick.setAttribute("y1", outer.y);
+    tick.setAttribute("x2", inner.x);
+    tick.setAttribute("y2", inner.y);
+    tick.setAttribute("class", "sm major");
+    gm.appendChild(tick);
+
+    if (gl) {
+      const lp = polar(deg, 92);
+      const lbl = document.createElementNS(
         "http://www.w3.org/2000/svg",
-        "line",
+        "text",
       );
-      line.setAttribute("x1", outer.x.toFixed(1));
-      line.setAttribute("y1", outer.y.toFixed(1));
-      line.setAttribute("x2", inner.x.toFixed(1));
-      line.setAttribute("y2", inner.y.toFixed(1));
-      line.setAttribute("class", "scale-mark");
-      g.appendChild(line);
-    }
-  }
-}
-buildScaleMarks();
-
-// ── Nadel & Bogen aktualisieren ─────────────────────────────
-function updateRPM(rpm) {
-  const pct = Math.min(Math.max(rpm, 0), 100) / 100;
-  const deg = ARC_START_DEG + pct * ARC_TOTAL_DEG;
-
-  // Nadel drehen (transform-origin im SVG ist 110 110)
-  const needle = document.getElementById("needle");
-  if (needle) {
-    needle.style.transform = `rotate(${ARC_START_DEG + pct * ARC_TOTAL_DEG}deg)`;
-  }
-
-  // Aktiver Bogen
-  const arc = document.getElementById("arc-active");
-  if (arc) {
-    if (pct < 0.001) {
-      arc.setAttribute("d", `M ${CX} ${CY}`);
-    } else {
-      arc.setAttribute("d", arcPath(ARC_START_DEG, deg, 88));
-    }
-    arc.className =
-      "arc-active" + (pct > 0.85 ? " red" : pct > 0.65 ? " yellow" : " green");
-  }
-}
-
-// ── Hilfsfunktionen ──────────────────────────────────────────
-function setActive(id, active, extraClass) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.toggle("active", active);
-  if (extraClass) el.classList.toggle(extraClass, active);
-}
-
-function setClass(id, cls, active) {
-  const el = document.getElementById(id);
-  if (el) el.classList.toggle(cls, active);
-}
-
-// ── NUI Message Handler ─────────────────────────────────────
-window.addEventListener("message", function (event) {
-  const d = event.data;
-
-  // ── Fahrzeug-HUD ──────────────────────────────────────
-  if (d.action === "vehicle_show") {
-    document.getElementById("vehicle-hud").classList.remove("hidden");
-
-    // Geschwindigkeit
-    document.getElementById("speed").textContent = d.speed || 0;
-
-    // RPM + Nadel
-    updateRPM(d.rpm || 0);
-    document.getElementById("rpm-display").textContent = d.rpmRaw || 0;
-
-    // Gang
-    document.getElementById("gear").textContent = d.gear || "N";
-
-    // Kraftstoff
-    const fuel = Math.max(0, Math.min(100, d.fuel || 0));
-    const fuelBar = document.getElementById("fuel-bar");
-    const fuelIcon = document.getElementById("fuel-icon");
-    document.getElementById("fuel-pct").textContent = fuel + "%";
-    if (fuelBar) {
-      fuelBar.style.width = fuel + "%";
-      fuelBar.className =
-        "fuel-bar" + (fuel <= 10 ? " critical" : fuel <= 25 ? " warning" : "");
-    }
-    if (fuelIcon) {
-      fuelIcon.className =
-        "fuel-svg" + (fuel <= 10 ? " critical" : fuel <= 25 ? " warning" : "");
+      lbl.setAttribute("x", lp.x);
+      lbl.setAttribute("y", lp.y);
+      lbl.setAttribute("class", "slbl");
+      lbl.textContent = i;
+      gl.appendChild(lbl);
     }
 
-    // Motor / ODO
-    document.getElementById("engine-display").textContent = d.engine || 100;
-    document.getElementById("odo-display").textContent = d.odometer
-      ? d.odometer.toFixed(1)
-      : "0.0";
-
-    // Lichter
-    setActive("light-low", d.lightsLow);
-    setActive("light-high", d.lightsHigh);
-
-    // Warnleuchten
-    setActive("w-handbrake", d.handbrake);
-    setActive("w-engine", d.engine <= 50);
-    setActive("w-oil", d.isOilCritical);
-    setActive("w-tcs", d.tcs);
-    setActive("w-cruise", d.cruise);
-
-    // Gurt
-    const sb = document.getElementById("w-seatbelt");
-    if (sb) {
-      sb.classList.remove("active", "blink", "green");
-      if (d.seatbelt) {
-        sb.classList.add("green");
-      } else {
-        sb.classList.add("active");
-        if (d.speed > 10) sb.classList.add("blink");
+    if (i < 10) {
+      for (let j = 1; j < 4; j++) {
+        const d2 = D0 + ((i + j / 4) / 10) * DR;
+        const sub_o = polar(d2, 120);
+        const sub_i = polar(d2, 113);
+        const sub = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "line",
+        );
+        sub.setAttribute("x1", sub_o.x);
+        sub.setAttribute("y1", sub_o.y);
+        sub.setAttribute("x2", sub_i.x);
+        sub.setAttribute("y2", sub_i.y);
+        sub.setAttribute("class", "sm");
+        gm.appendChild(sub);
       }
     }
+  }
+})();
 
-    // Blinker
-    const bl = document.getElementById("blinker-left");
-    const br = document.getElementById("blinker-right");
-    if (d.leftSignal) bl.classList.add("active");
-    else bl.classList.remove("active");
-    if (d.rightSignal) br.classList.add("active");
-    else br.classList.remove("active");
+// ── RPM: Nadel + Bogen ─────────────────────────────────────
+function setRPM(v) {
+  const pct = Math.min(Math.max(v, 0), 100) / 100;
+  const deg = D0 + pct * DR;
+
+  const needle = document.getElementById("s-needle");
+  if (needle) needle.style.transform = `rotate(${deg}deg)`;
+
+  const arc = document.getElementById("rpm-arc");
+  if (arc) {
+    arc.setAttribute("d", pct < 0.003 ? `M${CX} ${CY}` : arcPath(D0, deg, R));
+    arc.classList.remove("yellow", "red");
+    if (pct > 0.87) arc.classList.add("red");
+    else if (pct > 0.67) arc.classList.add("yellow");
+  }
+}
+
+// ── Sprit: einzelner Bogen rechts ─────────────────────────
+// Bogen-Pfad: "M 318 82 A 162 162 0 0 1 318 228"
+// Länge ≈ π × 162 × (146° / 180°) ≈ 206 px  →  wir nutzen 204
+const FUEL_LEN = 207;
+
+function setFuel(pct) {
+  const filled = (Math.max(0, Math.min(100, pct)) / 100) * FUEL_LEN;
+  const el = document.getElementById("fuel-fill");
+  if (!el) return;
+
+  el.style.strokeDasharray = `${filled.toFixed(1)} ${FUEL_LEN}`;
+  el.style.strokeDashoffset = "0";
+
+  el.classList.remove("warning", "critical");
+  if (pct <= 10) el.classList.add("critical");
+  else if (pct <= 25) el.classList.add("warning");
+}
+
+// ── Blinker (JS-Timer) ─────────────────────────────────────
+let lOn = false,
+  rOn = false,
+  blinkTimer = null,
+  blinkState = false;
+
+function tickBlink() {
+  blinkState = !blinkState;
+  const lo = lOn && blinkState;
+  const ro = rOn && blinkState;
+  document.getElementById("sb-left")?.classList.toggle("lit", lo);
+  document.getElementById("sb-right")?.classList.toggle("lit", ro);
+  document
+    .getElementById("sb-hazard")
+    ?.classList.toggle("active", lOn && rOn && blinkState);
+}
+
+function updateBlinkers(l, r) {
+  lOn = !!l;
+  rOn = !!r;
+  if ((l || r) && !blinkTimer) blinkTimer = setInterval(tickBlink, 550);
+  if (!l && !r) {
+    clearInterval(blinkTimer);
+    blinkTimer = null;
+    blinkState = false;
+    document.getElementById("sb-left")?.classList.remove("lit");
+    document.getElementById("sb-right")?.classList.remove("lit");
+    document.getElementById("sb-hazard")?.classList.remove("active");
+  }
+}
+
+// ── Hilfsfunktionen ────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const tx = (id, v) => {
+  const e = $(id);
+  if (e) e.textContent = v;
+};
+const tog = (id, cls, on) => $(id)?.classList.toggle(cls, !!on);
+
+// ── NUI Messages ───────────────────────────────────────────
+window.addEventListener("message", (e) => {
+  const d = e.data;
+  if (!d || !d.action) return;
+
+  // ── Fahrzeug anzeigen ────────────────────────────────
+  if (d.action === "vehicle_show") {
+    const hud = $("vehicle-hud");
+    if (!hud) return;
+    hud.classList.remove("hidden");
+
+    const spd = d.speed ?? 0;
+    const fuel = Math.max(0, Math.min(100, d.fuel ?? 100));
+    const eng = Math.max(0, Math.min(100, d.engine ?? 100));
+    const gear = d.gear ?? "N";
+
+    tx("speed", spd);
+    tx("gear", gear);
+    tx("gear-bot", gear);
+    tx("rpm-display", ((d.rpmRaw ?? 0) / 1000).toFixed(1));
+    tx(
+      "odo-display",
+      String(Math.floor(d.odometer ?? 0)).padStart(6, "0") + " KM",
+    );
+
+    setRPM(d.rpm ?? 0);
+    setFuel(fuel);
+
+    // Fuel-Icon
+    const ci = $("ci-fuel");
+    if (ci) {
+      ci.classList.remove("warning", "critical");
+      if (fuel <= 10) ci.classList.add("critical");
+      else if (fuel <= 25) ci.classList.add("warning");
+    }
+
+    // Engine-Icon
+    tog("ci-engine", "active", eng <= 50);
+
+    // Statusleiste
+    tog("sb-light-low", "active", d.lightsLow);
+    tog("sb-light-high", "active", d.lightsHigh);
+    tog("sb-tcs", "active", d.tcs);
+
+    // Gurt
+    const sb = $("sb-seatbelt");
+    if (sb) {
+      sb.classList.remove("red", "green");
+      if (d.seatbelt) sb.classList.add("green");
+      else if (spd > 10) sb.classList.add("red");
+    }
+
+    updateBlinkers(d.leftSignal, d.rightSignal);
   }
 
   if (d.action === "vehicle_hide") {
-    document.getElementById("vehicle-hud").classList.add("hidden");
+    $("vehicle-hud")?.classList.add("hidden");
+    clearInterval(blinkTimer);
+    blinkTimer = null;
   }
 
-  // ── Spieler-Panel ──────────────────────────────────────
+  // ── Spieler ──────────────────────────────────────────
   if (d.action === "player_update") {
-    document.getElementById("player-panel").classList.remove("hidden");
-    document.getElementById("player-money").textContent = d.money || "$0";
-    document.getElementById("player-level").textContent =
-      "LVL " + (d.level || 1);
-    document.getElementById("player-xp").textContent = (d.xp || 0) + " XP";
-    const xpBar = document.getElementById("xp-bar");
-    if (xpBar) xpBar.style.width = (d.xpPct || 0) + "%";
+    $("player-panel")?.classList.remove("hidden");
+    tx("player-money", d.money ?? "$0");
+    tx("player-level", "LVL " + (d.level ?? 1));
+    tx("player-xp", (d.xp ?? 0) + " XP");
+    const b = $("xp-bar");
+    if (b) b.style.width = (d.xpPct ?? 0) + "%";
   }
 
-  // ── Job-Panel ─────────────────────────────────────────
+  // ── Job ───────────────────────────────────────────────
   if (d.action === "job_show") {
-    const jp = document.getElementById("job-panel");
-    jp.classList.remove("hidden");
-    document.getElementById("job-icon").textContent =
-      d.step === "Abholen" ? "📦" : "📍";
-    document.getElementById("job-label").textContent = d.label || "—";
-    document.getElementById("job-step").textContent = d.step || "—";
+    $("job-panel")?.classList.remove("hidden");
+    tx("job-icon", d.step === "Liefern" ? "📍" : "📦");
+    tx("job-label", d.label ?? "—");
+    tx("job-step", d.step ?? "—");
   }
+  if (d.action === "job_hide") $("job-panel")?.classList.add("hidden");
 
-  if (d.action === "job_hide") {
-    document.getElementById("job-panel").classList.add("hidden");
-  }
-
-  // ── Bonus-Panel ───────────────────────────────────────
+  // ── Bonus ─────────────────────────────────────────────
   if (d.action === "bonus_show") {
-    const bp = document.getElementById("bonus-panel");
-    bp.classList.remove("hidden");
-    document.getElementById("bonus-label").textContent =
-      "Bonus +" + (d.pct || 0) + "%";
+    $("bonus-panel")?.classList.remove("hidden");
+    tx("bonus-label", "+" + (d.pct ?? 0) + "%");
   }
-
-  if (d.action === "bonus_hide") {
-    document.getElementById("bonus-panel").classList.add("hidden");
-  }
+  if (d.action === "bonus_hide") $("bonus-panel")?.classList.add("hidden");
 });
 
-// ── Startup-Animation ───────────────────────────────────────
+// ── Startup-Sweep ──────────────────────────────────────────
 (function startup() {
-  let rpm = 0;
+  setFuel(100);
+  let v = 0;
   const up = setInterval(() => {
-    rpm += 3;
-    updateRPM(rpm);
-    if (rpm >= 100) {
+    v += 2;
+    setRPM(v);
+    if (v >= 100) {
       clearInterval(up);
       setTimeout(() => {
-        const down = setInterval(() => {
-          rpm -= 3;
-          updateRPM(rpm);
-          if (rpm <= 0) {
-            clearInterval(down);
-            updateRPM(0);
+        const dn = setInterval(() => {
+          v -= 2;
+          setRPM(v);
+          if (v <= 0) {
+            clearInterval(dn);
+            setRPM(0);
           }
-        }, 15);
-      }, 150);
+        }, 14);
+      }, 200);
     }
-  }, 15);
+  }, 14);
 })();

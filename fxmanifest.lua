@@ -6,12 +6,12 @@ description 'Motor Town – custom FiveM recreation'
 author 'D4rkst3r'
 version '1.0.2'
 
-ui_page 'html/index.html'
+ui_page 'ui/index.html'
 
 files {
-    'html/index.html',
-    'html/style.css',
-    'html/script.js'
+    'ui/index.html',
+    'ui/style.css',
+    'ui/script.js'
 }
 
 -- Shared: geladen auf Client UND Server

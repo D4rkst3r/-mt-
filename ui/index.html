@@ -4,174 +4,141 @@
 <head>
     <meta charset="UTF-8">
     <title>MotorTown HUD</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap"
-        rel="stylesheet">
+    <style>
+        @import url('https://cdn.jsdelivr.net/npm/@fontsource/barlow-condensed@5/index.css');
+        @import url('https://cdn.jsdelivr.net/npm/@fontsource/barlow@5/index.css');
+    </style>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <!-- TOP LEFT: Spieler -->
-    <div id="player-panel" class="panel hidden">
-        <div class="player-money" id="player-money">$0</div>
-        <div class="player-meta">
-            <span class="player-level" id="player-level">LVL 1</span>
-            <div class="xp-bar-wrap">
-                <div class="xp-bar" id="xp-bar"></div>
+    <div id="player-panel" class="hidden">
+        <div class="pp-money" id="player-money">$0</div>
+        <div class="pp-meta">
+            <span class="pp-level" id="player-level">LVL 1</span>
+            <div class="pp-xpwrap">
+                <div class="pp-xpbar" id="xp-bar"></div>
             </div>
-            <span class="player-xp" id="player-xp">0 XP</span>
+            <span class="pp-xp" id="player-xp">0 XP</span>
         </div>
     </div>
 
-    <!-- TOP CENTER: Job -->
-    <div id="job-panel" class="panel hidden">
-        <span class="job-icon" id="job-icon">📦</span>
-        <div class="job-text">
-            <div class="job-label" id="job-label">—</div>
-            <div class="job-step" id="job-step">Abholen</div>
+    <div id="job-panel" class="hidden">
+        <span class="jp-icon" id="job-icon">📦</span>
+        <div>
+            <div class="jp-label" id="job-label">—</div>
+            <div class="jp-step" id="job-step">Abholen</div>
         </div>
     </div>
 
-    <!-- BOTTOM LEFT: Town Bonus -->
-    <div id="bonus-panel" class="panel hidden">
-        <span>📍</span>
-        <span id="bonus-label">Bonus +0%</span>
+    <div id="bonus-panel" class="hidden">
+        <span>📍</span><span id="bonus-label">+0%</span>
     </div>
 
-    <!-- BOTTOM CENTER: Fahrzeug-HUD -->
+    <!-- VEHICLE HUD – unten rechts -->
     <div id="vehicle-hud" class="hidden">
 
-        <!-- Warn-Zeile oben -->
-        <div class="warn-row">
-            <div class="warn-icon" id="w-handbrake">
+        <div class="speedo-outer">
+
+            <div class="ci ci-left" id="ci-fuel">
                 <svg viewBox="0 0 24 24">
                     <path
-                        d="M12,2A10,10,0,1,0,22,12,10,10,0,0,0,12,2Zm0,18a8,8,0,1,1,8-8A8,8,0,0,1,12,20ZM11,7h2v6H11Zm0,8h2v2H11Z" />
+                        d="M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1v5.5c0 1.1.9 2 2 2s2-.9 2-2V10.39c.61-.56 1-1.34 1-2.22 0-.35-.06-.68-.17-.94zM12 10H6V5h6v5z" />
                 </svg>
-                <span>P</span>
             </div>
-            <div class="warn-icon" id="w-engine">
+            <div class="ci ci-right" id="ci-engine">
                 <svg viewBox="0 0 24 24">
                     <path
                         d="M19 13.5V11H17V9H15V7H9V9H7V11H5V13.5L3 15V19H5V21H19V19H21V15L19 13.5M10 9H14V11H16V13H17V15H19V18H5V15H7V13H8V11H10V9Z" />
                 </svg>
             </div>
-            <div class="warn-icon" id="w-oil">
-                <svg viewBox="0 0 24 24">
-                    <path
-                        d="M11 11.5c0-.8-.7-1.5-1.5-1.5S8 10.7 8 11.5 8.7 13 9.5 13s1.5-.7 1.5-1.5M18 13.5c0-.8-.7-1.5-1.5-1.5s-1.5.7-1.5 1.5.7 1.5 1.5 1.5 1.5-.7 1.5-1.5M22 6c-1.3 0-2.4.9-2.8 2.1l-4.2-.8c-.1-.7-.8-1.3-1.5-1.3H10c-.8 0-1.5.7-1.5 1.5v2.8l-4.2.8C3.9 9.9 2.8 9 1.5 9c-.8 0-1.5.7-1.5 1.5s.7 1.5 1.5 1.5c.5 0 1-.3 1.3-.7l4.2-.8c.2.6.8 1 1.5 1h3.5c.7 0 1.3-.4 1.5-1l4.2.8c.3.5.8.7 1.3.7 1.3 0 2.4-.9 2.8-2.1V18h1v-9.5c0-1.4-1.1-2.5-2.5-2.5z" />
-                </svg>
+
+            <svg class="speedo-svg" viewBox="0 0 340 300">
+
+                <!-- Schwarzer Kreis -->
+                <circle cx="170" cy="155" r="145" class="outer-ring" />
+
+                <!-- RPM Track: M 66 215 A 120 120 0 1 1 274 215  (240°, D0=-120°) -->
+                <path class="rpm-track" d="M 66.1 215 A 120 120 0 1 1 273.9 215" />
+
+                <!-- Skala (wird per JS befüllt) -->
+                <g id="scale-g"></g>
+                <g id="scale-labels"></g>
+
+                <!-- Aktiver RPM-Bogen (initial leer) -->
+                <path class="rpm-active" id="rpm-arc" d="M 66.1 215 A 120 120 0 0 1 66.1 215" />
+
+                <!-- Sprit-Bogen rechts außerhalb des Rings  -->
+                <!-- Bogen von oben-rechts (50°) nach unten-rechts (130°), R=148 -->
+                <path class="fuel-track" d="M 283.4 59.9 A 148 148 0 0 1 283.4 250.1" />
+                <path class="fuel-fill" id="fuel-fill" d="M 283.4 59.9 A 148 148 0 0 1 283.4 250.1" />
+
+                <!-- Nadel -->
+                <line class="s-needle" id="s-needle" x1="170" y1="155" x2="170" y2="43" />
+                <circle cx="170" cy="155" r="12" class="s-hub" />
+                <circle cx="170" cy="155" r="5" class="s-hub-dot" />
+
+            </svg>
+
+            <div class="gear-badge"><span id="gear">N</span></div>
+
+            <div class="s-center">
+                <div class="s-speed" id="speed">0</div>
+                <div class="s-unit">KM/H</div>
             </div>
-            <div class="warn-icon" id="w-seatbelt">
-                <svg viewBox="0 0 24 24">
-                    <path d="M6 2v10h4V2H6m1 1h2v8H7V3m8 9c-1.1 0-2 .9-2 2v6h6v-6c0-1.1-.9-2-2-2h-2m-1 2h4v4h-4v-4z" />
-                </svg>
-            </div>
-            <div class="warn-icon" id="w-tcs">
-                <svg viewBox="0 0 24 24">
-                    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
-                </svg>
-                <span>TCS</span>
-            </div>
-            <div class="warn-icon" id="w-cruise">
-                <svg viewBox="0 0 24 24">
-                    <path
-                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
-                </svg>
-                <span>CC</span>
-            </div>
+
+            <div class="s-odo" id="odo-display">000000 KM</div>
+
         </div>
 
-        <!-- Tacho-Zeile -->
-        <div class="tacho-row">
-
-            <!-- Linker Blinker -->
-            <div class="blinker blinker-left" id="blinker-left">
+        <!-- Status-Leiste -->
+        <div class="status-bar">
+            <div class="sb-arrow sb-left" id="sb-left">
                 <svg viewBox="0 0 24 24">
                     <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z" />
                 </svg>
             </div>
-
-            <!-- SVG-Tacho -->
-            <div class="tacho-wrap">
-                <svg class="tacho-svg" viewBox="0 0 220 130">
-                    <!-- Hintergrundbogen 220° -->
-                    <path class="arc-track" d="M 22 118 A 88 88 0 1 1 198 118" />
-                    <!-- Zonen -->
-                    <path class="arc-green" d="M 22 118 A 88 88 0 0 1 80 17" />
-                    <path class="arc-yellow" d="M 80 17  A 88 88 0 0 1 148 14" />
-                    <path class="arc-red" d="M 148 14 A 88 88 0 0 1 198 118" />
-                    <!-- Aktiver Bogen -->
-                    <path class="arc-active" id="arc-active" d="M 22 118 A 88 88 0 0 1 22 118" />
-                    <!-- Skalierungsmarkierungen -->
-                    <g class="scale-marks" id="scale-marks"></g>
-                    <!-- Nadel -->
-                    <line class="needle" id="needle" x1="110" y1="110" x2="110" y2="28" />
-                    <!-- Nabenkreis -->
-                    <circle cx="110" cy="110" r="8" class="hub" />
-                    <circle cx="110" cy="110" r="4" class="hub-inner" />
+            <div class="sb-icon" id="sb-hazard">
+                <svg viewBox="0 0 24 24">
+                    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
                 </svg>
-
-                <!-- Digitale Anzeige im Zentrum -->
-                <div class="tacho-center">
-                    <div class="speed-val" id="speed">0</div>
-                    <div class="speed-unit">km/h</div>
-                </div>
             </div>
-
-            <!-- Rechter Blinker -->
-            <div class="blinker blinker-right" id="blinker-right">
+            <div class="sb-icon" id="sb-light-low">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M7 16l-4-4 4-4 1.41 1.41L6.83 11H21v2H6.83l1.59 1.59L7 16zm14-9v2h-8V7h8zm0 8v2h-8v-2h8z" />
+                </svg>
+            </div>
+            <div class="sb-icon" id="sb-light-high">
+                <svg viewBox="0 0 24 24">
+                    <path d="M22 12l-7-5v3H2v4h13v3l7-5z" />
+                </svg>
+            </div>
+            <div class="sb-icon" id="sb-tcs">
+                <svg viewBox="0 0 24 24">
+                    <path
+                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                </svg>
+            </div>
+            <div class="sb-icon" id="sb-seatbelt">
+                <svg viewBox="0 0 24 24">
+                    <path d="M6 2v10h4V2H6m1 1h2v8H7V3m8 9c-1.1 0-2 .9-2 2v6h6v-6c0-1.1-.9-2-2-2h-2m-1 2h4v4h-4v-4z" />
+                </svg>
+            </div>
+            <div class="sb-arrow sb-right" id="sb-right">
                 <svg viewBox="0 0 24 24">
                     <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
                 </svg>
             </div>
         </div>
 
-        <!-- Info-Zeile unten -->
-        <div class="info-row">
-
-            <!-- Gang + RPM -->
-            <div class="info-block">
-                <div class="gear-val" id="gear">N</div>
-                <div class="info-lbl">GANG</div>
-                <div class="rpm-val"><span id="rpm-display">0</span> RPM</div>
-            </div>
-
-            <!-- Kraftstoff -->
-            <div class="info-block fuel-block">
-                <div class="fuel-top">
-                    <svg class="fuel-svg" id="fuel-icon" viewBox="0 0 24 24">
-                        <path
-                            d="M19.77 7.23l.01-.01-3.72-3.72L15 4.56l2.11 2.11c-.94.36-1.61 1.26-1.61 2.33 0 1.38 1.12 2.5 2.5 2.5.36 0 .69-.08 1-.21v7.21c0 .55-.45 1-1 1s-1-.45-1-1V14c0-1.1-.9-2-2-2h-1V5c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2v16h10v-7.5h1v5.5c0 1.1.9 2 2 2s2-.9 2-2V10.39c.61-.56 1-1.34 1-2.22 0-.35-.06-.68-.17-.94zM12 10H6V5h6v5z" />
-                    </svg>
-                    <span class="fuel-pct" id="fuel-pct">100%</span>
-                </div>
-                <div class="fuel-bar-wrap">
-                    <div class="fuel-bar" id="fuel-bar"></div>
-                </div>
-            </div>
-
-            <!-- Licht + ODO + Motor -->
-            <div class="info-block">
-                <div class="light-row">
-                    <div class="light-icon" id="light-low">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7L8 5z" />
-                        </svg>
-                    </div>
-                    <div class="light-icon" id="light-high">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M22 12l-7-5v3H2v4h13v3l7-5z" />
-                        </svg>
-                    </div>
-                </div>
-                <div class="odo-val">⏱ <span id="odo-display">0.0</span> km</div>
-                <div class="engine-val">🔧 <span id="engine-display">100</span>%</div>
-            </div>
+        <div class="bot-info">
+            <span><span id="rpm-display">0.0</span> × 1000 RPM</span>
+            <span>GANG <b id="gear-bot">N</b></span>
         </div>
 
-    </div><!-- /vehicle-hud -->
+    </div>
 
     <script src="script.js"></script>
 </body>

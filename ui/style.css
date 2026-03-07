@@ -1,428 +1,269 @@
-/* ═══════════════════════════════════════════════════════
-   MotorTown HUD – Dark Industrial Style
-   Font: Rajdhani (labels) + Share Tech Mono (numbers)
-═══════════════════════════════════════════════════════ */
+:root {
+    --font-num: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+    --font-ui:  'Barlow', Arial, sans-serif;
+    --gold:     #f5c518;
+    --green:    #5fdf78;
+    --red:      #ff4444;
+    --blue:     #4a9eff;
+    --off:      rgba(255,255,255,0.15);
+}
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-    font-family: 'Rajdhani', sans-serif;
+    font-family: var(--font-ui);
     background: transparent;
     overflow: hidden;
-    width: 100vw;
-    height: 100vh;
+    width: 100vw; height: 100vh;
     pointer-events: none;
     user-select: none;
 }
 
 .hidden { display: none !important; }
 
-/* ───────────────────────────────────────
-   PLAYER PANEL – top left
-─────────────────────────────────────── */
+/* ════════════════════════════════
+   PLAYER PANEL
+════════════════════════════════ */
 #player-panel {
-    position: fixed;
-    top: 18px;
-    left: 18px;
-    background: linear-gradient(135deg, rgba(10,10,12,0.88), rgba(20,20,25,0.82));
-    border: 1px solid rgba(255,255,255,0.07);
-    border-left: 3px solid #e8b84b;
-    border-radius: 4px;
-    padding: 10px 16px;
-    min-width: 200px;
-    backdrop-filter: blur(4px);
+    position: fixed; top: 18px; left: 18px;
+    background: rgba(10,10,12,0.85);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    padding: 10px 16px; min-width: 180px;
+    backdrop-filter: blur(12px);
 }
-
-.player-money {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 22px;
-    color: #6dd67a;
-    letter-spacing: 1px;
-    text-shadow: 0 0 12px rgba(109,214,122,0.4);
-    margin-bottom: 6px;
+.pp-money {
+    font-family: var(--font-num);
+    font-size: 22px; font-weight: 700;
+    color: var(--green); letter-spacing: 1px; margin-bottom: 6px;
 }
+.pp-meta  { display: flex; align-items: center; gap: 8px; }
+.pp-level { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 1px; white-space: nowrap; }
+.pp-xpwrap { flex: 1; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.pp-xpbar  { height: 100%; width: 0; background: var(--blue); transition: width .4s; }
+.pp-xp { font-size: 9px; color: rgba(255,255,255,0.32); white-space: nowrap; }
 
-.player-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.player-level {
-    font-size: 12px;
-    font-weight: 700;
-    color: #e8b84b;
-    letter-spacing: 1px;
-    white-space: nowrap;
-}
-
-.xp-bar-wrap {
-    flex: 1;
-    height: 4px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.xp-bar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #4a9eff, #74b8ff);
-    border-radius: 2px;
-    transition: width 0.4s ease;
-    box-shadow: 0 0 6px rgba(74,158,255,0.5);
-}
-
-.player-xp {
-    font-size: 10px;
-    color: rgba(255,255,255,0.4);
-    white-space: nowrap;
-    font-family: 'Share Tech Mono', monospace;
-}
-
-/* ───────────────────────────────────────
-   JOB PANEL – top center
-─────────────────────────────────────── */
+/* ════════════════════════════════
+   JOB PANEL
+════════════════════════════════ */
 #job-panel {
-    position: fixed;
-    top: 18px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, rgba(10,10,12,0.88), rgba(20,20,25,0.82));
-    border: 1px solid rgba(255,255,255,0.07);
-    border-bottom: 2px solid #e8b84b;
-    border-radius: 4px;
-    padding: 8px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    backdrop-filter: blur(4px);
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    background: rgba(10,10,12,0.85);
+    border-bottom: 2px solid var(--gold); border-radius: 6px;
+    padding: 8px 20px; display: flex; align-items: center; gap: 12px;
+    backdrop-filter: blur(12px);
 }
+.jp-icon  { font-size: 18px; }
+.jp-label { font-size: 14px; font-weight: 700; color: #fff; }
+.jp-step  { font-size: 11px; color: var(--gold); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
 
-.job-icon { font-size: 20px; }
-
-.job-label {
-    font-size: 15px;
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: 0.5px;
-}
-
-.job-step {
-    font-size: 12px;
-    color: #e8b84b;
-    font-weight: 600;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-
-/* ───────────────────────────────────────
-   BONUS PANEL – bottom left
-─────────────────────────────────────── */
+/* ════════════════════════════════
+   BONUS PANEL
+════════════════════════════════ */
 #bonus-panel {
-    position: fixed;
-    bottom: 24px;
-    left: 18px;
-    background: linear-gradient(135deg, rgba(10,10,12,0.88), rgba(20,20,25,0.82));
-    border: 1px solid rgba(255,200,50,0.2);
-    border-left: 3px solid #e8b84b;
-    border-radius: 4px;
-    padding: 6px 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #e8b84b;
-    letter-spacing: 0.5px;
-    text-shadow: 0 0 10px rgba(232,184,75,0.4);
-    backdrop-filter: blur(4px);
+    position: fixed; bottom: 90px; left: 18px;
+    background: rgba(10,10,12,0.85); border-left: 3px solid var(--gold);
+    border-radius: 6px; padding: 6px 14px;
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--font-num); font-size: 14px; font-weight: 700; color: var(--gold);
+    backdrop-filter: blur(12px);
 }
 
-/* ───────────────────────────────────────
-   VEHICLE HUD – bottom center
-─────────────────────────────────────── */
+/* ════════════════════════════════
+   VEHICLE HUD
+════════════════════════════════ */
 #vehicle-hud {
     position: fixed;
-    bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(160deg, rgba(10,10,14,0.92), rgba(16,16,22,0.88));
-    border: 1px solid rgba(255,255,255,0.07);
-    border-top: 2px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    padding: 10px 20px 12px;
-    min-width: 480px;
-    backdrop-filter: blur(6px);
-    box-shadow: 0 -4px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+    bottom: 14px; right: 20px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 8px;
 }
 
-/* ── Warn-Zeile ── */
-.warn-row {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.warn-icon {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    width: 28px;
-    opacity: 0.18;
-    transition: opacity 0.15s, filter 0.15s;
-}
-
-.warn-icon svg {
-    width: 20px;
-    height: 20px;
-    fill: currentColor;
-}
-
-.warn-icon span {
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-}
-
-/* Aktive Warn-Icons */
-#w-handbrake.active { color: #ff3b3b; opacity: 1; filter: drop-shadow(0 0 5px #ff3b3b); }
-#w-engine.active    { color: #ff3b3b; opacity: 1; filter: drop-shadow(0 0 5px #ff3b3b); }
-#w-oil.active       { color: #ff3b3b; opacity: 1; filter: drop-shadow(0 0 5px #ff3b3b); animation: blink 0.6s infinite; }
-#w-seatbelt.active  { color: #ff3b3b; opacity: 1; filter: drop-shadow(0 0 5px #ff3b3b); }
-#w-seatbelt.blink   { animation: blink 0.8s infinite; }
-#w-seatbelt.green   { color: #6dd67a; opacity: 1; filter: drop-shadow(0 0 5px #6dd67a); animation: none; }
-#w-tcs.active       { color: #ffaa00; opacity: 1; filter: drop-shadow(0 0 4px #ffaa00); }
-#w-cruise.active    { color: #6dd67a; opacity: 1; filter: drop-shadow(0 0 5px #6dd67a); }
-
-/* ── Tacho-Zeile ── */
-.tacho-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-/* ── SVG-Tacho ── */
-.tacho-wrap {
+/* ── Äußerer Container ── */
+.speedo-outer {
     position: relative;
-    width: 220px;
-    height: 130px;
+    width: 340px; height: 300px;
 }
 
-.tacho-svg {
-    width: 220px;
-    height: 130px;
+/* ── Kleine Warn-Icons oben ── */
+.ci {
+    position: absolute;
+    width: 22px; height: 22px; z-index: 10;
+    color: var(--off);
+    transition: color .2s, filter .2s;
+}
+.ci svg { width: 100%; height: 100%; fill: currentColor; }
+.ci-left  { top: 42px; left:  62px; }
+.ci-right { top: 42px; right: 62px; }
+
+#ci-fuel.warning  { color: var(--gold); filter: drop-shadow(0 0 5px var(--gold)); }
+#ci-fuel.critical { color: var(--red);  filter: drop-shadow(0 0 6px var(--red));  animation: blink .4s infinite; }
+#ci-engine.active { color: var(--gold); filter: drop-shadow(0 0 5px var(--gold)); }
+
+/* ── SVG ── */
+.speedo-svg { width: 340px; height: 300px; overflow: visible; }
+
+/* Äußerer Kreis */
+.outer-ring {
+    fill: #0e0e12;
+    stroke: rgba(255,255,255,0.07); stroke-width: 2;
+    filter: drop-shadow(0 6px 32px rgba(0,0,0,0.9));
 }
 
-/* Bogen-Styles */
-.arc-track  { stroke: rgba(255,255,255,0.08); stroke-width: 10; fill: none; stroke-linecap: round; }
-.arc-green  { stroke: rgba(109,214,122,0.25); stroke-width: 10; fill: none; stroke-linecap: round; }
-.arc-yellow { stroke: rgba(255,170,0,0.25);   stroke-width: 10; fill: none; stroke-linecap: round; }
-.arc-red    { stroke: rgba(255,59,59,0.25);   stroke-width: 10; fill: none; stroke-linecap: round; }
-.arc-active { stroke: #4a9eff; stroke-width: 6; fill: none; stroke-linecap: round; transition: all 0.05s linear; }
-.arc-active.green  { stroke: #6dd67a; }
-.arc-active.yellow { stroke: #ffaa00; }
-.arc-active.red    { stroke: #ff3b3b; filter: drop-shadow(0 0 4px #ff3b3b); }
+/* RPM Track */
+.rpm-track {
+    fill: none;
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 11; stroke-linecap: round;
+}
+
+/* Aktiver RPM-Bogen */
+.rpm-active {
+    fill: none; stroke: #fff;
+    stroke-width: 8; stroke-linecap: round;
+    filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
+    transition: stroke .1s;
+}
+.rpm-active.yellow { stroke: var(--gold); filter: drop-shadow(0 0 7px rgba(245,197,24,.7)); }
+.rpm-active.red    { stroke: var(--red);  filter: drop-shadow(0 0 8px rgba(255,68,68,.8)); }
 
 /* Skalenstriche */
-.scale-mark       { stroke: rgba(255,255,255,0.3); stroke-width: 1.5; }
-.scale-mark.major { stroke: rgba(255,255,255,0.6); stroke-width: 2; }
+.sm       { stroke: rgba(255,255,255,0.20); stroke-width: 1.5; }
+.sm.major { stroke: rgba(255,255,255,0.58); stroke-width: 2.5; }
 
-/* Nadel */
-.needle {
-    stroke: #fff;
-    stroke-width: 2;
-    stroke-linecap: round;
-    transform-origin: 110px 110px;
-    transform: rotate(-110deg);
-    transition: transform 0.06s linear;
-    filter: drop-shadow(0 0 3px rgba(255,255,255,0.6));
+/* Skalenzahlen */
+.slbl {
+    fill: rgba(255,255,255,0.38);
+    font-family: var(--font-num);
+    font-size: 14px; font-weight: 300;
+    text-anchor: middle; dominant-baseline: middle;
 }
 
-.hub       { fill: rgba(20,20,28,0.95); stroke: rgba(255,255,255,0.2); stroke-width: 1; }
-.hub-inner { fill: #e8b84b; }
+/* ── Sprit-Bogen rechts ── */
+.fuel-track {
+    fill: none;
+    stroke: rgba(255,255,255,0.06);
+    stroke-width: 10; stroke-linecap: round;
+}
+.fuel-fill {
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 8; stroke-linecap: round;
+    filter: drop-shadow(0 0 6px rgba(245,197,24,.6));
+    /* dasharray wird per JS gesetzt */
+    transition: stroke-dasharray .5s ease, stroke .3s;
+}
+.fuel-fill.warning  { stroke: #ff9900; filter: drop-shadow(0 0 6px rgba(255,153,0,.6)); }
+.fuel-fill.critical { stroke: var(--red); filter: drop-shadow(0 0 7px rgba(255,68,68,.7)); animation: blink .4s infinite; }
 
-/* Digitale Anzeige im Tacho-Zentrum */
-.tacho-center {
+/* ── Nadel ── */
+.s-needle {
+    stroke: #fff; stroke-width: 2.5; stroke-linecap: round;
+    transform-origin: 170px 155px;
+    transform: rotate(-120deg);
+    transition: transform .07s linear;
+    filter: drop-shadow(0 0 5px rgba(255,255,255,.55));
+}
+.s-hub     { fill: #0c0c10; stroke: rgba(255,255,255,.14); stroke-width: 2.5; }
+.s-hub-dot { fill: var(--gold); }
+
+/* ── Gang-Badge ── */
+.gear-badge {
     position: absolute;
-    bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 50px; left: 50%; transform: translateX(-50%);
+    width: 36px; height: 36px;
+    background: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+}
+.gear-badge span {
+    font-family: var(--font-num);
+    font-size: 19px; font-weight: 900;
+    color: #0e0e12; line-height: 1;
+}
+
+/* ── km/h Mitte ── */
+.s-center {
+    position: absolute;
+    top: 46%; left: 50%;
+    transform: translate(-50%, -50%);
     text-align: center;
     pointer-events: none;
 }
-
-.speed-val {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 36px;
-    color: #fff;
-    line-height: 1;
-    text-shadow: 0 0 20px rgba(255,255,255,0.3);
-    letter-spacing: -1px;
+.s-speed {
+    font-family: var(--font-num);
+    font-size: 86px; font-weight: 900; color: #fff;
+    line-height: 1; letter-spacing: -4px;
+    text-shadow: 0 0 30px rgba(255,255,255,.12);
+}
+.s-unit {
+    font-size: 11px; font-weight: 400;
+    color: rgba(255,255,255,.30);
+    letter-spacing: 5px; text-transform: uppercase;
+    margin-top: -4px;
 }
 
-.speed-unit {
-    font-size: 10px;
-    color: rgba(255,255,255,0.4);
-    font-weight: 600;
-    letter-spacing: 2px;
-    text-transform: uppercase;
+/* ── ODO ── */
+.s-odo {
+    position: absolute;
+    bottom: 50px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-num);
+    font-size: 12px; font-weight: 300;
+    color: rgba(255,255,255,.22); letter-spacing: 3px; white-space: nowrap;
 }
 
-/* ── Blinker ── */
-.blinker {
-    width: 36px;
-    height: 36px;
-    opacity: 0.12;
-    transition: opacity 0.1s;
+/* ════════════════════════════════
+   STATUS BAR
+════════════════════════════════ */
+.status-bar {
+    display: flex; align-items: center; justify-content: center;
+    gap: 18px;
+    background: rgba(10,10,12,0.85);
+    border-radius: 50px;
+    padding: 9px 28px;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
 }
 
-.blinker svg {
-    width: 100%;
-    height: 100%;
-    fill: #ffcc00;
+.sb-icon {
+    width: 20px; height: 20px;
+    color: var(--off);
+    transition: color .15s, filter .15s;
 }
+.sb-icon svg { width: 100%; height: 100%; fill: currentColor; }
 
-.blinker.active {
-    opacity: 1;
-    filter: drop-shadow(0 0 8px #ffcc00);
-    animation: blink 0.55s infinite;
+.sb-arrow {
+    width: 22px; height: 22px;
+    color: rgba(255,255,255,0.12);
+    transition: color .1s, filter .1s;
 }
+.sb-arrow svg { width: 100%; height: 100%; fill: currentColor; }
+.sb-arrow.lit { color: var(--gold); filter: drop-shadow(0 0 8px var(--gold)); }
 
-/* ── Info-Zeile ── */
-.info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+#sb-hazard.active     { color: var(--gold); filter: drop-shadow(0 0 5px var(--gold)); animation: blink .5s infinite; }
+#sb-light-low.active  { color: var(--green); filter: drop-shadow(0 0 5px var(--green)); }
+#sb-light-high.active { color: var(--blue);  filter: drop-shadow(0 0 5px var(--blue)); }
+#sb-tcs.active        { color: var(--gold);  filter: drop-shadow(0 0 5px var(--gold)); }
+#sb-seatbelt.red      { color: var(--red);   filter: drop-shadow(0 0 5px var(--red)); animation: blink .8s infinite; }
+#sb-seatbelt.green    { color: var(--green); filter: drop-shadow(0 0 5px var(--green)); }
+
+/* ════════════════════════════════
+   BOTTOM INFO
+════════════════════════════════ */
+.bot-info {
+    display: flex; justify-content: space-between;
+    width: 280px; padding: 0 4px;
+    font-family: var(--font-num);
+    font-size: 12px; font-weight: 300;
+    color: rgba(255,255,255,.22); letter-spacing: 1px;
 }
+.bot-info b { color: var(--gold); font-weight: 700; }
 
-.info-block {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-}
-
-.info-block:first-child { align-items: flex-start; }
-.info-block:last-child  { align-items: flex-end; }
-
-.gear-val {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 30px;
-    color: #e8b84b;
-    line-height: 1;
-    text-shadow: 0 0 12px rgba(232,184,75,0.4);
-}
-
-.info-lbl {
-    font-size: 9px;
-    color: rgba(255,255,255,0.3);
-    letter-spacing: 2px;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.rpm-val {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    color: rgba(255,255,255,0.5);
-    margin-top: 2px;
-}
-
-/* ── Kraftstoff-Block ── */
-.fuel-block { gap: 5px; }
-
-.fuel-top {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.fuel-svg {
-    width: 18px;
-    height: 18px;
-    fill: rgba(255,255,255,0.5);
-    transition: fill 0.3s;
-}
-
-.fuel-svg.warning { fill: #ffaa00; filter: drop-shadow(0 0 4px #ffaa00); }
-.fuel-svg.critical { fill: #ff3b3b; filter: drop-shadow(0 0 6px #ff3b3b); animation: blink-fast 0.4s infinite; }
-
-.fuel-pct {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 14px;
-    color: rgba(255,255,255,0.7);
-}
-
-.fuel-bar-wrap {
-    width: 100px;
-    height: 6px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.fuel-bar {
-    height: 100%;
-    width: 100%;
-    background: linear-gradient(90deg, #6dd67a, #4fc45a);
-    border-radius: 3px;
-    transition: width 0.4s ease, background 0.3s;
-    box-shadow: 0 0 6px rgba(109,214,122,0.4);
-}
-
-.fuel-bar.warning  { background: linear-gradient(90deg, #ffaa00, #ffcc44); box-shadow: 0 0 6px rgba(255,170,0,0.4); }
-.fuel-bar.critical { background: linear-gradient(90deg, #ff3b3b, #ff6b6b); box-shadow: 0 0 8px rgba(255,59,59,0.5); }
-
-/* ── Licht / ODO / Motor ── */
-.light-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.light-icon {
-    width: 20px;
-    height: 20px;
-    opacity: 0.15;
-    transition: opacity 0.2s, filter 0.2s;
-}
-
-.light-icon svg { width: 100%; height: 100%; fill: currentColor; }
-#light-low.active  { color: #6dd67a; opacity: 1; filter: drop-shadow(0 0 5px #6dd67a); }
-#light-high.active { color: #4a9eff; opacity: 1; filter: drop-shadow(0 0 5px #4a9eff); }
-
-.odo-val {
-    font-size: 11px;
-    color: rgba(255,255,255,0.4);
-    font-family: 'Share Tech Mono', monospace;
-}
-
-.engine-val {
-    font-size: 11px;
-    color: rgba(255,255,255,0.4);
-    font-family: 'Share Tech Mono', monospace;
-}
-
-/* ───────────────────────────────────────
+/* ════════════════════════════════
    ANIMATIONEN
-─────────────────────────────────────── */
+════════════════════════════════ */
 @keyframes blink {
     0%, 100% { opacity: 1; }
-    50%       { opacity: 0.15; }
-}
-
-@keyframes blink-fast {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.2; }
+    50%       { opacity: 0.08; }
 }
