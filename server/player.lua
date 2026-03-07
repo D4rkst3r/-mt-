@@ -183,14 +183,6 @@ function PlayerModule.Init()
         d.done()
     end)
 
-    -- Client meldet sich selbst wenn er bereit ist → kein Race Condition mehr
-    RegisterNetEvent("mt:player:requestLoad", function()
-        local source = source
-        SetTimeout(100, function()
-            LoadPlayer(source)
-        end)
-    end)
-
     AddEventHandler("playerDropped", function()
         local source = source
         SavePlayer(source)
@@ -217,3 +209,12 @@ end
 
 -- Modul nach außen zugänglich machen (für server/main.lua)
 _PlayerModule = PlayerModule
+
+-- Top-Level: sofort aktiv beim Laden der Datei, NICHT erst nach Wait(1000) in main.lua
+-- Verhindert Race Condition wenn Client schneller bereit ist als der Server-Bootstrap
+RegisterNetEvent("mt:player:requestLoad", function()
+    local source = source
+    SetTimeout(100, function()
+        LoadPlayer(source)
+    end)
+end)
