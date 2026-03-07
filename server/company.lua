@@ -186,6 +186,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnCompanyFound(source, data)
+    local source = source
     if not data or not data.name or #data.name < 3 then
         TriggerClientEvent("mt:company:result", source, {
             success = false, error = "Name muss mindestens 3 Zeichen lang sein."
@@ -282,6 +283,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnCompanyDataRequest(source)
+    local source = source
     local identifier = GetIdentifier(source)
     if not identifier then return end
 
@@ -333,6 +335,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnMemberInvite(source, data)
+    local source = source
     -- data = { targetIdentifier }
     if not data or not data.targetIdentifier then return end
 
@@ -400,6 +403,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnMemberKick(source, data)
+    local source = source
     if not data or not data.targetIdentifier then return end
 
     local identifier = GetIdentifier(source)
@@ -457,6 +461,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnRouteCreate(source, data)
+    local source = source
     -- data = { routeType, vehicleId }
     if not data or not data.routeType or not data.vehicleId then return end
 
@@ -509,6 +514,7 @@ local function OnRouteCreate(source, data)
 end
 
 local function OnRouteToggle(source, data)
+    local source = source
     -- data = { routeId }
     if not data or not data.routeId then return end
 
@@ -539,6 +545,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnCompanyDeposit(source, data)
+    local source = source
     if not data or not data.amount or data.amount <= 0 then return end
 
     local identifier = GetIdentifier(source)
@@ -582,6 +589,7 @@ local function OnCompanyDeposit(source, data)
 end
 
 local function OnCompanyWithdraw(source, data)
+    local source = source
     if not data or not data.amount or data.amount <= 0 then return end
 
     local identifier = GetIdentifier(source)
@@ -661,3 +669,5 @@ function CompanyModule.Init()
 end
 
 _CompanyModule = CompanyModule
+
+-- ────────────────────────────────────────────────────────────

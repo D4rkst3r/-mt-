@@ -97,6 +97,10 @@ function TownBonusModule.Init()
     AddEventHandler(MT.ZONE_ENTER, OnZoneEnter)
     AddEventHandler(MT.ZONE_EXIT, OnZoneExit)
 
+    exports("GetCurrentBonus", TownBonusModule.GetCurrentBonus)
+    exports("GetCurrentZone", TownBonusModule.GetCurrentZone)
+    exports("GetBonusTable", TownBonusModule.GetBonusTable)
+
     print("[MT] TownBonusModule (Client) initialisiert")
 end
 

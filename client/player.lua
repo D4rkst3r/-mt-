@@ -46,22 +46,13 @@ local function OnPlayerLoaded(data)
 
     -- Spawn in eigenem Thread – NetEvent-Handler darf nicht blockieren
     CreateThread(function()
-        exports.spawnmanager:setAutoSpawn(false)
-
-        -- Spawn-Punkt registrieren → gibt Index zurück
-        local spawnId = exports.spawnmanager:addSpawnPoint({
-            x       = 213.7, -- dispatcher_stadtmitte
+        exports.spawnmanager:spawnPlayer({
+            x       = 213.7,
             y       = -810.5,
             z       = 30.7,
             heading = 0.0,
             model   = "mp_m_freemode_01",
-        })
-
-        -- spawnPlayer(index, callback) – das ist die einzige Form die einen Callback unterstützt
-        exports.spawnmanager:spawnPlayer(spawnId, function(spawn)
-            -- Spawn-Punkt wieder entfernen (wird nur einmal gebraucht)
-            exports.spawnmanager:removeSpawnPoint(spawnId)
-
+        }, function(spawn)
             TriggerEvent("mt:player:ready", data)
 
             lib.notify({
@@ -122,6 +113,7 @@ function PlayerModule.Init()
     exports("IsPlayerLoaded", PlayerModule.IsLoaded)
     exports("GetLevel", PlayerModule.GetLevel)
     exports("GetMoney", PlayerModule.GetMoney)
+    TriggerServerEvent("mt:player:requestLoad")
 
     print("[MT] PlayerModule (Client) initialisiert")
 end

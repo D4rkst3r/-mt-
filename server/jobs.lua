@@ -69,18 +69,18 @@ end
 
 -- Endlohn berechnen
 local function CalcWage(source, jobKey, jobState)
-    local cfg       = jobState.jobConfig
-    local distKm    = jobState.distanceKm
-    local weightTon = cfg.cargo.weight / 1000.0
-    local elapsed   = os.time() - jobState.startTime
+    local cfg         = jobState.jobConfig
+    local distKm      = jobState.distanceKm
+    local weightTon   = cfg.cargo.weight / 1000.0
+    local elapsed     = os.time() - jobState.startTime
 
-    local rawWage   = cfg.baseWage
+    local rawWage     = cfg.baseWage
         + (distKm * cfg.wagePerKm)
         + (weightTon * cfg.wagePerTon)
 
     -- Town-Bonus per Koordinaten-Lookup aus TownBonusModule holen
     -- (identische Methode wie beim Erhöhen des Bonus nach Lieferung)
-    local townBonus = _TownBonusModule
+    local townBonus   = _TownBonusModule
         and _TownBonusModule.GetBonusForDelivery(jobState.deliveryZone)
         or 1.0
 
@@ -112,6 +112,7 @@ end
 
 -- Spieler fordert Job-Liste an (für Dispatcher-Menü)
 local function OnJobListRequest(source)
+    local source = source
     -- Rate-Limit prüfen
     local now = os.time()
     if lastRequest[source] and (now - lastRequest[source]) < REQUEST_COOLDOWN then
@@ -151,6 +152,7 @@ end
 
 -- Spieler nimmt Job an
 local function OnJobRequest(source, data)
+    local source = source
     if not data or not data.jobKey then return end
 
     -- Doppeljob verhindern
@@ -221,6 +223,7 @@ end
 
 -- Client bestätigt Cargo wurde geladen
 local function OnCargoLoaded(source, data)
+    local source = source
     local job = activeJobs[source]
     if not job then return end
 
@@ -259,6 +262,7 @@ end
 
 -- Client bestätigt Ablieferung
 local function OnJobComplete(source, data)
+    local source = source
     local job = activeJobs[source]
     if not job then
         TriggerClientEvent(MT.JOB_VALIDATE, source, { error = "Kein aktiver Job." })
@@ -327,6 +331,7 @@ end
 
 -- Spieler bricht Job ab
 local function OnJobCancel(source)
+    local source = source
     local job = activeJobs[source]
     if not job then return end
 

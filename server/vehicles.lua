@@ -52,6 +52,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnVehicleBuy(source, data)
+    local source = source
     if not data or not data.model then return end
 
     local vehicleCfg = Config.Vehicles[data.model]
@@ -135,6 +136,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnGarageRequest(source)
+    local source = source
     local playerData = _PlayerModule.GetData(source)
     if not playerData then return end
 
@@ -161,6 +163,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnVehicleStore(source, data)
+    local source = source
     if not data or not data.plate then return end
 
     local playerData = _PlayerModule.GetData(source)
@@ -196,6 +199,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnVehicleRetrieve(source, data)
+    local source = source
     if not data or not data.vehicleId then return end
 
     local playerData = _PlayerModule.GetData(source)
@@ -244,6 +248,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnUpgradeBuy(source, data)
+    local source = source
     -- data = { vehicleId, upgradeKey, level }
     if not data or not data.vehicleId or not data.upgradeKey or not data.level then
         return
@@ -324,6 +329,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnRepairPay(source, data)
+    local source = source
     -- data = { damage }  0.0–1.0 Schadenwert vom Client
     if not data then return end
 
