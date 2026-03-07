@@ -185,7 +185,7 @@ end
 --  Net Events: Company gründen
 -- ────────────────────────────────────────────────────────────
 
-local function OnCompanyFound(source, data)
+local function OnCompanyFound(data)
     local source = source
     if not data or not data.name or #data.name < 3 then
         TriggerClientEvent("mt:company:result", source, {
@@ -282,7 +282,7 @@ end
 --  Net Events: Company-Daten laden (für UI)
 -- ────────────────────────────────────────────────────────────
 
-local function OnCompanyDataRequest(source)
+local function OnCompanyDataRequest()
     local source = source
     local identifier = GetIdentifier(source)
     if not identifier then return end
@@ -334,7 +334,7 @@ end
 --  Net Events: Mitglied einladen
 -- ────────────────────────────────────────────────────────────
 
-local function OnMemberInvite(source, data)
+local function OnMemberInvite(data)
     local source = source
     -- data = { targetIdentifier }
     if not data or not data.targetIdentifier then return end
@@ -402,7 +402,7 @@ end
 --  Net Events: Mitglied entlassen
 -- ────────────────────────────────────────────────────────────
 
-local function OnMemberKick(source, data)
+local function OnMemberKick(data)
     local source = source
     if not data or not data.targetIdentifier then return end
 
@@ -460,7 +460,7 @@ end
 --  Net Events: Route erstellen / pausieren
 -- ────────────────────────────────────────────────────────────
 
-local function OnRouteCreate(source, data)
+local function OnRouteCreate(data)
     local source = source
     -- data = { routeType, vehicleId }
     if not data or not data.routeType or not data.vehicleId then return end
@@ -513,7 +513,7 @@ local function OnRouteCreate(source, data)
     end)
 end
 
-local function OnRouteToggle(source, data)
+local function OnRouteToggle(data)
     local source = source
     -- data = { routeId }
     if not data or not data.routeId then return end
@@ -544,7 +544,7 @@ end
 --  Net Events: Geld einzahlen / auszahlen (Owner only)
 -- ────────────────────────────────────────────────────────────
 
-local function OnCompanyDeposit(source, data)
+local function OnCompanyDeposit(data)
     local source = source
     if not data or not data.amount or data.amount <= 0 then return end
 
@@ -588,7 +588,7 @@ local function OnCompanyDeposit(source, data)
     end)
 end
 
-local function OnCompanyWithdraw(source, data)
+local function OnCompanyWithdraw(data)
     local source = source
     if not data or not data.amount or data.amount <= 0 then return end
 
@@ -656,6 +656,7 @@ function CompanyModule.Init()
 
     -- Cache aufräumen wenn Spieler disconnectet
     AddEventHandler("playerDropped", function()
+        local source = source
         local id = GetIdentifier(source)
         if id then memberCache[id] = nil end
     end)
@@ -669,5 +670,3 @@ function CompanyModule.Init()
 end
 
 _CompanyModule = CompanyModule
-
--- ────────────────────────────────────────────────────────────

@@ -111,7 +111,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 -- Spieler fordert Job-Liste an (für Dispatcher-Menü)
-local function OnJobListRequest(source)
+local function OnJobListRequest()
     local source = source
     -- Rate-Limit prüfen
     local now = os.time()
@@ -151,7 +151,7 @@ local function OnJobListRequest(source)
 end
 
 -- Spieler nimmt Job an
-local function OnJobRequest(source, data)
+local function OnJobRequest(data)
     local source = source
     if not data or not data.jobKey then return end
 
@@ -222,7 +222,7 @@ local function OnJobRequest(source, data)
 end
 
 -- Client bestätigt Cargo wurde geladen
-local function OnCargoLoaded(source, data)
+local function OnCargoLoaded(data)
     local source = source
     local job = activeJobs[source]
     if not job then return end
@@ -261,7 +261,7 @@ local function OnCargoLoaded(source, data)
 end
 
 -- Client bestätigt Ablieferung
-local function OnJobComplete(source, data)
+local function OnJobComplete(data)
     local source = source
     local job = activeJobs[source]
     if not job then
@@ -330,7 +330,7 @@ local function OnJobComplete(source, data)
 end
 
 -- Spieler bricht Job ab
-local function OnJobCancel(source)
+local function OnJobCancel()
     local source = source
     local job = activeJobs[source]
     if not job then return end
@@ -391,6 +391,7 @@ function JobModule.Init()
     end)
 
     AddEventHandler("playerDropped", function()
+        local source = source
         JobModule.ClearJob(source)
     end)
 

@@ -51,7 +51,7 @@ end
 --  Net Events: Fahrzeug kaufen
 -- ────────────────────────────────────────────────────────────
 
-local function OnVehicleBuy(source, data)
+local function OnVehicleBuy(data)
     local source = source
     if not data or not data.model then return end
 
@@ -108,7 +108,7 @@ local function OnVehicleBuy(source, data)
                 end
                 MySQL.insert(
                     [[INSERT INTO mt_vehicles
-                      (identifier, plate, model, upgrades, fuel, mileage, stored)
+                      (identifier, plate, model, upgrades, fuel, mileage, `stored`)
                       VALUES (?, ?, ?, ?, 100, 0, 1)]],
                     { playerData.identifier, plate, vehicleCfg.model,
                         json.encode({}) },
@@ -135,7 +135,7 @@ end
 --  Net Events: Garage (Fahrzeugliste anfordern)
 -- ────────────────────────────────────────────────────────────
 
-local function OnGarageRequest(source)
+local function OnGarageRequest()
     local source = source
     local playerData = _PlayerModule.GetData(source)
     if not playerData then return end
@@ -162,7 +162,7 @@ end
 --  Net Events: Fahrzeug einlagern
 -- ────────────────────────────────────────────────────────────
 
-local function OnVehicleStore(source, data)
+local function OnVehicleStore(data)
     local source = source
     if not data or not data.plate then return end
 
@@ -182,7 +182,7 @@ local function OnVehicleStore(source, data)
             end
 
             MySQL.update(
-                "UPDATE mt_vehicles SET stored = 1, fuel = ?, mileage = ? WHERE id = ?",
+                "UPDATE mt_vehicles SET `stored` = 1, fuel = ?, mileage = ? WHERE id = ?",
                 { data.fuel or 100, data.mileage or 0, vehicleId },
                 function()
                     TriggerClientEvent("mt:vehicle:storeResult", source, {
@@ -198,7 +198,7 @@ end
 --  Net Events: Fahrzeug holen (aus Garage spawnen)
 -- ────────────────────────────────────────────────────────────
 
-local function OnVehicleRetrieve(source, data)
+local function OnVehicleRetrieve(data)
     local source = source
     if not data or not data.vehicleId then return end
 
@@ -226,7 +226,7 @@ local function OnVehicleRetrieve(source, data)
 
             -- Als "draußen" markieren
             MySQL.update(
-                "UPDATE mt_vehicles SET stored = 0 WHERE id = ?",
+                "UPDATE mt_vehicles SET `stored` = 0 WHERE id = ?",
                 { vehicle.id }
             )
 
@@ -247,7 +247,7 @@ end
 --  Net Events: Upgrade kaufen
 -- ────────────────────────────────────────────────────────────
 
-local function OnUpgradeBuy(source, data)
+local function OnUpgradeBuy(data)
     local source = source
     -- data = { vehicleId, upgradeKey, level }
     if not data or not data.vehicleId or not data.upgradeKey or not data.level then
@@ -328,7 +328,7 @@ end
 --  Net Events: Reparatur bezahlen
 -- ────────────────────────────────────────────────────────────
 
-local function OnRepairPay(source, data)
+local function OnRepairPay(data)
     local source = source
     -- data = { damage }  0.0–1.0 Schadenwert vom Client
     if not data then return end
