@@ -195,7 +195,7 @@ function TownBonusModule.Init()
         end
 
         -- Decay-Loop starten
-        SetInterval(RunDecayTick, DECAY_INTERVAL_MS)
+        lib.setInterval(RunDecayTick, DECAY_INTERVAL_MS)
 
         -- Neuen Spielern sofort Bonus-Table schicken
         AddEventHandler("playerJoining", function()

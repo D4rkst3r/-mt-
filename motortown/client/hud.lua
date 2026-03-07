@@ -317,7 +317,7 @@ function HudModule.Init()
         StartDrawThread()
 
         -- Periodischer Update-Tick
-        SetInterval(UpdateHud, Config.HudUpdateMs)
+        lib.setInterval(UpdateHud, Config.HudUpdateMs)
 
         lib.notify({
             title       = Config.ServerName,

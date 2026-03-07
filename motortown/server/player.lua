@@ -200,7 +200,7 @@ function PlayerModule.Init()
     end)
 
     -- Periodisches Speichern alle 5 Minuten (crash-safety)
-    SetInterval(function()
+    lib.setInterval(function()
         for src, _ in pairs(PlayerModule.cache) do
             SavePlayer(src)
         end
