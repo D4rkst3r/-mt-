@@ -175,33 +175,39 @@ Config.Zones = {
     -- --------------------------------------------------------
 
     garage_hafen = {
-        type       = "box",
-        coords     = vec3(704.0, -2832.0, 6.0),
-        size       = vec3(5.0, 5.0, 2.5),
-        rotation   = 0,
-        label      = "Garage (Hafen)",
-        targets    = { "garage_menu" },
-        debugColor = { 255, 255, 0, 80 },
+        type         = "box",
+        coords       = vec3(704.0, -2832.0, 6.0),
+        spawnCoords  = vec3(710.0, -2832.0, 6.0), -- Straße vor der Garage
+        spawnHeading = 270.0,
+        size         = vec3(5.0, 5.0, 2.5),
+        rotation     = 0,
+        label        = "Garage (Hafen)",
+        targets      = { "garage_menu" },
+        debugColor   = { 255, 255, 0, 80 },
     },
 
     garage_industrie = {
-        type       = "box",
-        coords     = vec3(992.0, -2283.0, 29.0),
-        size       = vec3(5.0, 5.0, 2.5),
-        rotation   = 0,
-        label      = "Garage (Industrie)",
-        targets    = { "garage_menu" },
-        debugColor = { 255, 255, 0, 80 },
+        type         = "box",
+        coords       = vec3(992.0, -2283.0, 29.0),
+        spawnCoords  = vec3(998.0, -2283.0, 29.0), -- Straße vor der Garage
+        spawnHeading = 270.0,
+        size         = vec3(5.0, 5.0, 2.5),
+        rotation     = 0,
+        label        = "Garage (Industrie)",
+        targets      = { "garage_menu" },
+        debugColor   = { 255, 255, 0, 80 },
     },
 
     garage_stadtmitte = {
-        type       = "box",
-        coords     = vec3(215.7, -808.5, 30.7),
-        size       = vec3(5.0, 5.0, 2.5),
-        rotation   = 0,
-        label      = "Garage (Stadtmitte)",
-        targets    = { "garage_menu" },
-        debugColor = { 255, 255, 0, 80 },
+        type         = "box",
+        coords       = vec3(215.7, -808.5, 30.7),
+        spawnCoords  = vec3(215.7, -800.0, 30.7), -- Straße vor der Garage
+        spawnHeading = 0.0,
+        size         = vec3(5.0, 5.0, 2.5),
+        rotation     = 0,
+        label        = "Garage (Stadtmitte)",
+        targets      = { "garage_menu" },
+        debugColor   = { 255, 255, 0, 80 },
     },
 
     -- --------------------------------------------------------

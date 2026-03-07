@@ -6,6 +6,14 @@ description 'Motor Town – custom FiveM recreation'
 author 'D4rkst3r'
 version '1.0.2'
 
+ui_page 'html/index.html'
+
+files {
+    'html/index.html',
+    'html/style.css',
+    'html/script.js'
+}
+
 -- Shared: geladen auf Client UND Server
 -- WICHTIG: nur EIN shared_scripts-Block erlaubt, sonst wird der erste ignoriert!
 shared_scripts {

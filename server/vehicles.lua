@@ -365,6 +365,21 @@ end
 -- ────────────────────────────────────────────────────────────
 
 function VehicleModule.Init()
+    -- Emergency Store: wird bei onResourceStop vom Client gefeuert
+    -- Speichert Tankstand + Kilometerstand bevor Resource stirbt
+    -- stored=1 wird bereits via onResourceStop (server/main.lua) gesetzt
+    RegisterNetEvent("mt:vehicle:emergencyStore", function(data)
+        local source = source
+        if not data or not data.plate then return end
+        local playerData = _PlayerModule.GetData(source)
+        if not playerData then return end
+
+        MySQL.update(
+            "UPDATE mt_vehicles SET fuel = ?, mileage = ? WHERE plate = ? AND identifier = ?",
+            { data.fuel or 100, data.mileage or 0, data.plate, playerData.identifier }
+        )
+    end)
+
     RegisterNetEvent("mt:vehicle:buy", OnVehicleBuy)
     RegisterNetEvent("mt:vehicle:garageOpen", OnGarageRequest)
     RegisterNetEvent(MT.VEHICLE_STORE, OnVehicleStore)

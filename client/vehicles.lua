@@ -83,15 +83,26 @@ local function SpawnVehicle(data, spawnCoords, heading)
         -- Motor an
         SetVehicleEngineOn(vehicle, true, true, false)
 
-        -- Spieler einsteigen
+        -- Spieler ins Fahrzeug warpen (zuverlässiger als SetPedIntoVehicle)
         local ped = PlayerPedId()
-        SetPedIntoVehicle(ped, vehicle, -1)
+        TaskWarpPedIntoVehicle(ped, vehicle, -1)
 
         -- Warten bis Spieler wirklich drin sitzt
         local timeout = 0
         while GetVehiclePedIsIn(ped, false) ~= vehicle and timeout < 50 do
             Wait(100)
             timeout = timeout + 1
+        end
+
+        -- Wenn Warp fehlgeschlagen: Wegpunkt setzen damit Spieler Fahrzeug findet
+        if GetVehiclePedIsIn(ped, false) ~= vehicle then
+            local vCoords = GetEntityCoords(vehicle)
+            SetNewWaypoint(vCoords.x, vCoords.y)
+            lib.notify({
+                title       = "Fahrzeug gespawnt",
+                description = "Wegpunkt zu deinem Fahrzeug gesetzt.",
+                type        = "inform",
+            })
         end
 
         -- Tankstand setzen nachdem Spieler sitzt
@@ -131,17 +142,21 @@ function VehicleModule.StartDamageThread()
     if damageThread then return end
 
     damageThread = CreateThread(function()
-        while spawnedVehicle and DoesEntityExist(spawnedVehicle.entity) do
+        while true do
             Wait(2000)
 
-            local vehicle = spawnedVehicle.entity
+            -- Lokal sichern um Race Condition zu vermeiden
+            local sv = spawnedVehicle
+            if not sv or not DoesEntityExist(sv.entity) then break end
+
+            local vehicle = sv.entity
             local health  = GetVehicleBodyHealth(vehicle)
 
             -- Spürbarer Schaden → ans HUD-Modul melden
             if math.abs(health - lastHealth) > 5 then
                 lastHealth = health
                 TriggerEvent(MT.VEHICLE_DAMAGE_SYNC, {
-                    plate  = spawnedVehicle.plate,
+                    plate  = sv.plate,
                     health = health,
                     damage = Utils.Round(1.0 - (health / 1000.0), 3),
                 })
@@ -449,15 +464,26 @@ local function OnSpawnData(data)
         return
     end
 
-    local zone        = Config.Zones[data.spawnZone]
-    local baseCoords  = zone and zone.coords or GetEntityCoords(PlayerPedId())
-    local spawnCoords = vec3(
-        baseCoords.x + Config.SpawnOffset.x,
-        baseCoords.y + Config.SpawnOffset.y,
-        baseCoords.z + Config.SpawnOffset.z
-    )
+    local zone = Config.Zones[data.spawnZone]
+    -- Explizite spawnCoords bevorzugen, sonst Fallback auf zone.coords + Offset
+    local spawnCoords, heading
+    if zone and zone.spawnCoords then
+        spawnCoords = zone.spawnCoords
+        heading     = zone.spawnHeading or 0.0
+    elseif zone then
+        local base  = zone.coords
+        spawnCoords = vec3(
+            base.x + Config.SpawnOffset.x,
+            base.y + Config.SpawnOffset.y,
+            base.z + Config.SpawnOffset.z
+        )
+        heading     = 0.0
+    else
+        spawnCoords = GetEntityCoords(PlayerPedId())
+        heading     = GetEntityHeading(PlayerPedId())
+    end
 
-    SpawnVehicle(data, spawnCoords, 0.0)
+    SpawnVehicle(data, spawnCoords, heading)
 end
 
 local function OnUpgradeResult(data)
@@ -656,6 +682,23 @@ function VehicleModule.Init()
 
     AddEventHandler("mt:ui:openUpgrades", function()
         OpenUpgradeMenu()
+    end)
+
+    -- Resource Stop: Tankstand + Kilometerstand noch schnell zum Server schicken
+    -- Der Server setzt stored=1 via onResourceStop, wir schicken nur noch die Werte
+    AddEventHandler("onResourceStop", function(resourceName)
+        if resourceName ~= GetCurrentResourceName() then return end
+        if not spawnedVehicle or not DoesEntityExist(spawnedVehicle.entity) then return end
+
+        local fuel    = GetVehicleFuelLevel(spawnedVehicle.entity)
+        local mileage = _HudModule and _HudModule.GetOdometer() or 0
+
+        -- Synchroner DB-Update (kein Callback nötig, Resource stirbt gleich)
+        TriggerServerEvent("mt:vehicle:emergencyStore", {
+            plate   = spawnedVehicle.plate,
+            fuel    = Utils.Round(fuel, 0),
+            mileage = Utils.Round(mileage, 1),
+        })
     end)
 
     exports("GetSpawnedVehicle", VehicleModule.GetSpawnedVehicle)

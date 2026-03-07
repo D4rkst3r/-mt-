@@ -74,3 +74,23 @@ RegisterCommand("mt_setlevel", function(source, args)
     TriggerClientEvent(MT.PLAYER_LEVEL_UP, targetId, { level = level, xp = xpNeeded })
     print(("[MT] Spieler %d auf Level %d gesetzt"):format(targetId, level))
 end, true)
+
+-- ────────────────────────────────────────────────────────────
+--  Resource Stop: alle gespawnten Fahrzeuge zurück in Garage
+-- ────────────────────────────────────────────────────────────
+
+AddEventHandler("onResourceStop", function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+
+    -- Alle Fahrzeuge die als "draußen" (stored=0) markiert sind
+    -- werden zurückgesetzt, damit Spieler sie nach Neustart holen können
+    MySQL.update(
+        "UPDATE mt_vehicles SET `stored` = 1 WHERE `stored` = 0",
+        {},
+        function(affected)
+            print(("[MT] onResourceStop: %d Fahrzeug(e) automatisch eingelagert"):format(affected or 0))
+        end
+    )
+
+    -- Jobs leben nur im Memory (activeJobs in jobs.lua), kein DB-Cleanup nötig
+end)
