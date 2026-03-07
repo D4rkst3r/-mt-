@@ -4,14 +4,15 @@
 --  Dealer-UI, Garage-UI, Upgrade-UI, Schadensystem.
 -- ============================================================
 
-local VehicleModule  = {}
+local VehicleModule     = {}
 
 -- Aktuell gespawntes Fahrzeug des Spielers
-local spawnedVehicle = nil -- { entity, plate, id, upgrades }
+local spawnedVehicle    = nil -- { entity, plate, id, upgrades }
+local pendingStorePlate = nil -- Plate des Fahrzeugs das gerade eingelagert wird
 
 -- Schadensüberwachung
-local lastHealth     = 1000.0
-local damageThread   = nil
+local lastHealth        = 1000.0
+local damageThread      = nil
 
 -- ────────────────────────────────────────────────────────────
 --  HandlingFields anwenden
@@ -498,15 +499,20 @@ end
 
 local function OnVehicleStoreResult(data)
     if not data.success then
+        pendingStorePlate = nil
         lib.notify({ title = "Einlagern fehlgeschlagen", description = data.error, type = "error" })
         return
     end
 
-    -- Fahrzeug löschen
+    -- Fahrzeug löschen (das tatsächlich eingelagerte)
     if spawnedVehicle and DoesEntityExist(spawnedVehicle.entity) then
-        DeleteVehicle(spawnedVehicle.entity)
+        local storedPlate = pendingStorePlate or spawnedVehicle.plate
+        if spawnedVehicle.plate == storedPlate then
+            DeleteVehicle(spawnedVehicle.entity)
+            spawnedVehicle = nil
+        end
     end
-    spawnedVehicle = nil
+    pendingStorePlate = nil
 
     lib.notify({ title = "🅿️ Fahrzeug eingelagert", type = "success" })
 end
@@ -515,34 +521,78 @@ end
 --  Fahrzeug einlagern (aus Zone-Target)
 -- ────────────────────────────────────────────────────────────
 
-local function StoreCurrentVehicle()
-    local ped     = PlayerPedId()
-    local vehicle = GetVehiclePedIsIn(ped, false)
+local STORE_RADIUS = 15.0 -- Meter – Fahrzeug muss innerhalb stehen
 
-    if not vehicle or vehicle == 0 then
-        lib.notify({ title = "Kein Fahrzeug", description = "Steige in dein Fahrzeug ein.", type = "error" })
-        return
+-- Gibt alle eigenen MT-Fahrzeuge zurück die innerhalb des Radius stehen
+local function GetNearbyOwnVehicles(garageCoords)
+    local found = {}
+
+    -- Eigenes aktuell gespawntes Fahrzeug
+    if spawnedVehicle and DoesEntityExist(spawnedVehicle.entity) then
+        local vehCoords = GetEntityCoords(spawnedVehicle.entity)
+        local dist      = #(garageCoords - vehCoords)
+        if dist <= STORE_RADIUS then
+            table.insert(found, {
+                entity = spawnedVehicle.entity,
+                plate  = spawnedVehicle.plate,
+                id     = spawnedVehicle.id,
+                dist   = Utils.Round(dist, 1),
+            })
+        end
     end
 
-    if not spawnedVehicle then
+    return found
+end
+
+local function DoStoreVehicle(vehicleData)
+    pendingStorePlate = vehicleData.plate
+    local fuel = GetVehicleFuelLevel(vehicleData.entity)
+    TriggerServerEvent(MT.VEHICLE_STORE, {
+        plate   = vehicleData.plate,
+        fuel    = Utils.Round(fuel, 0),
+        mileage = 0,
+    })
+end
+
+local function StoreCurrentVehicle(zoneName)
+    local zone         = Config.Zones[zoneName or "garage_stadtmitte"]
+    local garageCoords = zone and zone.coords or GetEntityCoords(PlayerPedId())
+
+    local nearby       = GetNearbyOwnVehicles(garageCoords)
+
+    if #nearby == 0 then
         lib.notify({
-            title = "Unbekanntes Fahrzeug",
-            description =
-            "Nur eigene Motortown-Fahrzeuge können eingelagert werden.",
-            type = "error"
+            title       = "Kein Fahrzeug in der Nähe",
+            description = ("Dein Fahrzeug muss innerhalb von %dm zur Garage stehen."):format(STORE_RADIUS),
+            type        = "error",
         })
         return
     end
 
-    local plate  = GetVehicleNumberPlateText(vehicle):gsub("%s+", "")
-    local fuel   = GetVehicleFuelLevel(vehicle)
-    local health = GetVehicleBodyHealth(vehicle)
+    -- Nur ein Fahrzeug in der Nähe → direkt einlagern
+    if #nearby == 1 then
+        DoStoreVehicle(nearby[1])
+        return
+    end
 
-    TriggerServerEvent(MT.VEHICLE_STORE, {
-        plate   = plate,
-        fuel    = Utils.Round(fuel, 0),
-        mileage = 0, -- Kilometerstand wird in späterem Update getrackt
+    -- Mehrere Fahrzeuge → Auswahl anzeigen
+    local options = {}
+    for _, v in ipairs(nearby) do
+        table.insert(options, {
+            title       = ("🚛 %s"):format(v.plate),
+            description = ("%.1f m entfernt"):format(v.dist),
+            onSelect    = function()
+                DoStoreVehicle(v)
+            end,
+        })
+    end
+
+    lib.registerContext({
+        id      = "mt_store_select",
+        title   = "Welches Fahrzeug einlagern?",
+        options = options,
     })
+    lib.showContext("mt_store_select")
 end
 
 -- ────────────────────────────────────────────────────────────
@@ -590,8 +640,8 @@ function VehicleModule.Init()
         OpenGarageMenu(zoneName)
     end)
 
-    AddEventHandler("mt:vehicle:storeToGarage", function()
-        StoreCurrentVehicle()
+    AddEventHandler("mt:vehicle:storeToGarage", function(zoneName)
+        StoreCurrentVehicle(zoneName)
     end)
 
     AddEventHandler("mt:vehicle:repair", function()
