@@ -80,7 +80,7 @@ local function CalcWage(source, jobKey, jobState, townBonusTable)
 
     -- Bonus-Multiplikatoren
     local townBonus = 1.0
-    if townBonusTable and jobState.deliveryZoneKey then
+    if jobState.deliveryZone and jobState.deliveryZone:find(zoneKey) then
         -- Suche welche Bonus-Zone die Ablieferzone enthält
         for zoneKey, bonus in pairs(townBonusTable) do
             -- Vereinfachte Zuordnung: Zone-Key-Match im Delivery-Key

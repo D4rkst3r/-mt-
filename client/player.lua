@@ -65,14 +65,14 @@ local function OnMoneyUpdate(cash, bank)
     PlayerModule.data.bank  = bank
 
     -- HUD-Modul informieren (über Event, nicht direkten Aufruf)
-    TriggerEvent(MT.PLAYER_MONEY_UPDATE, cash, bank)
+    TriggerEvent("mt:player:localMoneyUpdate", cash, bank)
 end
 
 local function OnXPUpdate(xp, level)
     if not PlayerModule.data then return end
     PlayerModule.data.trucking_xp    = xp
     PlayerModule.data.trucking_level = level
-    TriggerEvent(MT.PLAYER_XP_UPDATE, xp, level)
+    TriggerEvent("mt:player:localXpUpdate", xp, level)
 end
 
 local function OnLevelUp(newLevel)

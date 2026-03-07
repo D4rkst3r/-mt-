@@ -354,7 +354,7 @@ local function OnJobComplete(data)
     })
 
     -- HUD-Update triggern
-    TriggerEvent(MT.JOB_COMPLETE, data)
+    TriggerEvent("mt:job:localComplete", data)
 end
 
 local function OnJobCancel()

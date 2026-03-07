@@ -70,7 +70,7 @@ local function OnSupplyUpdate(updates)
     end
 
     -- HUD-Modul informieren (zeigt ggf. Fabrik-Indikator)
-    TriggerEvent(MT.SUPPLY_UPDATE, localStocks)
+    TriggerEvent("mt:supply:localUpdate", localStocks)
 end
 
 -- Server antwortet auf Status-Request
