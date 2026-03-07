@@ -179,20 +179,18 @@ end
 -- ────────────────────────────────────────────────────────────
 
 function PlayerModule.Init()
-    -- Spieler verbindet sich
     AddEventHandler("playerConnecting", function(name, _, d)
-        -- Validierung (Platzhalter – hier z.B. Bans prüfbar)
         d.done()
     end)
 
-    AddEventHandler("playerJoining", function()
-        local source = source      -- Closures brauchen lokale Kopie
-        SetTimeout(500, function() -- kurze Verzögerung für Identifier-Verfügbarkeit
+    -- Client meldet sich selbst wenn er bereit ist → kein Race Condition mehr
+    RegisterNetEvent("mt:player:requestLoad", function()
+        local source = source
+        SetTimeout(100, function()
             LoadPlayer(source)
         end)
     end)
 
-    -- Spieler trennt sich: speichern & aus Cache entfernen
     AddEventHandler("playerDropped", function()
         local source = source
         SavePlayer(source)

@@ -50,7 +50,7 @@ local function OnPlayerLoaded(data)
 
         -- Spawn-Punkt registrieren → gibt Index zurück
         local spawnId = exports.spawnmanager:addSpawnPoint({
-            x       = 213.7,  -- dispatcher_stadtmitte
+            x       = 213.7, -- dispatcher_stadtmitte
             y       = -810.5,
             z       = 30.7,
             heading = 0.0,
