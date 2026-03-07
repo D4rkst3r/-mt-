@@ -645,7 +645,7 @@ function CompanyModule.Init()
     end)
 
     -- NPC-Routen Simulation
-    lib.setInterval(RunRouteTick, ROUTE_TICK_MS)
+    SetInterval(RunRouteTick, ROUTE_TICK_MS)
 
     exports("GetMembership", CompanyModule.GetMembership)
 

@@ -6,14 +6,12 @@ description 'Motor Town – custom FiveM recreation'
 author 'D4rkst3r'
 version '1.0.0'
 
--- Shared: geladen auf Client UND Server, zuerst
+-- Shared: geladen auf Client UND Server
+-- WICHTIG: nur EIN shared_scripts-Block erlaubt, sonst wird der erste ignoriert!
 shared_scripts {
+    '@ox_lib/init.lua', -- stellt das globale "lib" bereit – muss zuerst kommen
     'shared/events.lua',
     'shared/utils.lua',
-}
-
--- Config: ebenfalls shared (Client braucht Werte für UI/Zonen)
-shared_scripts {
     'config/config.lua',
     'config/jobs.lua',
     'config/vehicles.lua',

@@ -268,16 +268,16 @@ Config.Zones = {
 
     -- --------------------------------------------------------
     --  STADTTEILE – PolyZones für Town Bonus
-    --  (Punkte im Uhrzeigersinn, vec2 für Poly)
+    --  ox_lib erwartet vector3[] – Z-Wert ist die Bodenhöhe
     -- --------------------------------------------------------
 
     stadt_downtown = {
         type      = "poly",
         points    = {
-            vec2(-800.0, -600.0),
-            vec2(200.0, -600.0),
-            vec2(200.0, 300.0),
-            vec2(-800.0, 300.0),
+            vec3(-800.0, -600.0, 30.0),
+            vec3(200.0, -600.0, 30.0),
+            vec3(200.0, 300.0, 30.0),
+            vec3(-800.0, 300.0, 30.0),
         },
         thickness = 80.0,
         label     = "Downtown LS",
@@ -288,10 +288,10 @@ Config.Zones = {
     stadt_hafen = {
         type      = "poly",
         points    = {
-            vec2(500.0, -3300.0),
-            vec2(1200.0, -3300.0),
-            vec2(1200.0, -2500.0),
-            vec2(500.0, -2500.0),
+            vec3(500.0, -3300.0, 6.0),
+            vec3(1200.0, -3300.0, 6.0),
+            vec3(1200.0, -2500.0, 6.0),
+            vec3(500.0, -2500.0, 6.0),
         },
         thickness = 80.0,
         label     = "Hafenviertel",
@@ -302,10 +302,10 @@ Config.Zones = {
     stadt_industriegebiet = {
         type      = "poly",
         points    = {
-            vec2(600.0, -2500.0),
-            vec2(1400.0, -2500.0),
-            vec2(1400.0, -1600.0),
-            vec2(600.0, -1600.0),
+            vec3(600.0, -2500.0, 30.0),
+            vec3(1400.0, -2500.0, 30.0),
+            vec3(1400.0, -1600.0, 30.0),
+            vec3(600.0, -1600.0, 30.0),
         },
         thickness = 80.0,
         label     = "Industriegebiet",
@@ -316,10 +316,10 @@ Config.Zones = {
     stadt_sandy = {
         type      = "poly",
         points    = {
-            vec2(1700.0, 3300.0),
-            vec2(2600.0, 3300.0),
-            vec2(2600.0, 4200.0),
-            vec2(1700.0, 4200.0),
+            vec3(1700.0, 3300.0, 30.0),
+            vec3(2600.0, 3300.0, 30.0),
+            vec3(2600.0, 4200.0, 30.0),
+            vec3(1700.0, 4200.0, 30.0),
         },
         thickness = 80.0,
         label     = "Sandy Shores",
@@ -330,10 +330,10 @@ Config.Zones = {
     stadt_paleto = {
         type      = "poly",
         points    = {
-            vec2(-950.0, 5500.0),
-            vec2(-100.0, 5500.0),
-            vec2(-100.0, 6200.0),
-            vec2(-950.0, 6200.0),
+            vec3(-950.0, 5500.0, 30.0),
+            vec3(-100.0, 5500.0, 30.0),
+            vec3(-100.0, 6200.0, 30.0),
+            vec3(-950.0, 6200.0, 30.0),
         },
         thickness = 80.0,
         label     = "Paleto Bay",

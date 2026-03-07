@@ -220,13 +220,13 @@ function SupplyChainModule.Init()
         end
 
         -- Produktions-Loop
-        lib.setInterval(RunProductionTick, Config.ProductionTickMs)
+        SetInterval(RunProductionTick, Config.ProductionTickMs)
 
         -- Verbraucher-Loop
-        lib.setInterval(RunConsumerTick, Config.ConsumerTickMs)
+        SetInterval(RunConsumerTick, Config.ConsumerTickMs)
 
         -- Periodisches Speichern (alle 2 Min extra)
-        lib.setInterval(SaveStocks, 2 * 60 * 1000)
+        SetInterval(SaveStocks, 2 * 60 * 1000)
     end)
 
     -- Event-Listener
