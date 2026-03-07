@@ -46,4 +46,5 @@ MT.SUPPLY_UPDATE          = "mt:supply:update"
 MT.SUPPLY_JOB_GENERATED   = "mt:supply:jobGenerated"
 
 -- Town Bonus ---------------------------------------------------
-MT.BONUS_UPDATE           = "mt:townbonus:update"
+MT.BONUS_UPDATE           = "mt:townbonus:update" -- Server→Client: ganzer bonusTable
+MT.BONUS_CHANGED          = "mt:townbonus:changed" -- Client-lokal: HUD/Job informieren
