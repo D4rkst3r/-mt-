@@ -151,7 +151,7 @@ local function OnGarageRequest()
                 upgrades = json.decode(v.upgrades or "{}") or {},
                 fuel     = v.fuel,
                 mileage  = v.mileage,
-                stored   = v.stored == 1,
+                stored   = v.stored == 1 or v.stored == true,
             })
         end
         TriggerClientEvent("mt:vehicle:garageList", source, result)
@@ -216,7 +216,7 @@ local function OnVehicleRetrieve(data)
                 return
             end
 
-            if vehicle.stored == 0 then
+            if vehicle.stored == 0 or vehicle.stored == false then
                 TriggerClientEvent("mt:vehicle:spawnData", source, {
                     success = false,
                     error   = "Fahrzeug ist bereits gespawnt.",
