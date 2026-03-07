@@ -377,6 +377,16 @@ local function OnJobValidate(data)
         })
         return
     end
+    -- Supply-Chain-Alert: Fabrik hat Output verfügbar → Job empfohlen
+    if data.supplyAlert then
+        lib.notify({
+            title       = ("📦 Supply-Job: %s"):format(data.label),
+            description = ("Die %s hat Ware bereit – jetzt liefern!"):format(data.factory),
+            type        = "inform",
+            duration    = 8000,
+        })
+        return
+    end
     if data.jobs then
         OpenDispatcherMenu(data.jobs)
     end

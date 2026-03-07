@@ -68,7 +68,7 @@ local function CalcTimeMultiplier(jobConfig, elapsedSeconds)
 end
 
 -- Endlohn berechnen
-local function CalcWage(source, jobKey, jobState, townBonusTable)
+local function CalcWage(source, jobKey, jobState)
     local cfg       = jobState.jobConfig
     local distKm    = jobState.distanceKm
     local weightTon = cfg.cargo.weight / 1000.0
@@ -78,18 +78,11 @@ local function CalcWage(source, jobKey, jobState, townBonusTable)
         + (distKm * cfg.wagePerKm)
         + (weightTon * cfg.wagePerTon)
 
-    -- Bonus-Multiplikatoren
-    local townBonus = 1.0
-    if jobState.deliveryZone and jobState.deliveryZone:find(zoneKey) then
-        -- Suche welche Bonus-Zone die Ablieferzone enthält
-        for zoneKey, bonus in pairs(townBonusTable) do
-            -- Vereinfachte Zuordnung: Zone-Key-Match im Delivery-Key
-            if jobState.deliveryZone and jobState.deliveryZone:find(zoneKey) then
-                townBonus = bonus
-                break
-            end
-        end
-    end
+    -- Town-Bonus per Koordinaten-Lookup aus TownBonusModule holen
+    -- (identische Methode wie beim Erhöhen des Bonus nach Lieferung)
+    local townBonus = _TownBonusModule
+        and _TownBonusModule.GetBonusForDelivery(jobState.deliveryZone)
+        or 1.0
 
     local timeMult    = CalcTimeMultiplier(cfg, elapsed)
     local dangerMult  = cfg.dangerBonus or 1.0
@@ -238,6 +231,7 @@ local function OnCargoLoaded(source, data)
         -- Versucht in falscher Zone zu laden
         print(("[MT] SICHERHEIT: %s versuchte in falscher Zone zu laden (%s statt %s)")
             :format(source, data.zone, job.pickupZone))
+        TriggerClientEvent(MT.JOB_VALIDATE, source, { error = "Ungültige Ladezone." })
         return
     end
 
@@ -276,6 +270,7 @@ local function OnJobComplete(source, data)
     -- Sicherheit: muss in Ablieferzone sein
     if data.zone ~= job.deliveryZone then
         print(("[MT] SICHERHEIT: %s versuchte in falscher Zone abzuliefern"):format(source))
+        TriggerClientEvent(MT.JOB_VALIDATE, source, { error = "Ungültige Ablieferzone." })
         return
     end
 
@@ -297,11 +292,8 @@ local function OnJobComplete(source, data)
         return
     end
 
-    -- Town Bonus holen (aus TownBonusModule)
-    local townBonusTable = _TownBonusModule and _TownBonusModule.GetBonusTable() or {}
-
-    -- Lohn berechnen
-    local wage, breakdown = CalcWage(source, job.jobKey, job, townBonusTable)
+    -- Town Bonus für diese Zone erhöhen
+    local wage, breakdown = CalcWage(source, job.jobKey, job)
 
     -- Auszahlung
     _PlayerModule.AddMoney(source, wage, ("Job abgeschlossen: %s"):format(job.jobConfig.label))
@@ -376,6 +368,22 @@ function JobModule.Init()
     RegisterNetEvent("mt:job:cargoLoaded", OnCargoLoaded)
     RegisterNetEvent(MT.JOB_COMPLETE, OnJobComplete)
     RegisterNetEvent(MT.JOB_CANCEL, OnJobCancel)
+
+    -- Supply Chain: Wenn eine Fabrik genug Output hat → alle Spieler benachrichtigen
+    AddEventHandler(MT.SUPPLY_JOB_GENERATED, function(factoryKey, factory)
+        local jobKey = factory and factory.deliveryJobKey
+        if not jobKey or not Config.Jobs[jobKey] then return end
+        local jobCfg = Config.Jobs[jobKey]
+        -- Alle Online-Spieler benachrichtigen dass ein Supply-Job verfügbar ist
+        TriggerClientEvent(MT.JOB_VALIDATE, -1, {
+            supplyAlert = true,
+            jobKey      = jobKey,
+            label       = jobCfg.label,
+            factory     = factory.label,
+        })
+        print(("[MT][Supply] Job-Alert: '%s' (%s hat Output-Überschuss)"):format(
+            jobCfg.label, factory.label))
+    end)
 
     AddEventHandler("playerDropped", function()
         JobModule.ClearJob(source)

@@ -122,8 +122,9 @@ local function RunConsumerTick()
                 ))
                 TriggerClientEvent(MT.SUPPLY_UPDATE, -1, {
                     {
-                        key = consumer.factoryKey,
-                        urgent = true,
+                        key         = consumer.factoryKey,
+                        label       = consumer.label, -- war vorher nil → zeigt jetzt korrektes Label
+                        urgent      = true,
                         inputStock  = stock.inputStock,
                         outputStock = stock.outputStock
                     }

@@ -22,17 +22,21 @@ local damageThread   = nil
 local function ApplyUpgrades(vehicle, upgrades)
     if not vehicle or not upgrades then return end
 
-    -- Basis-Handling zuerst zurücksetzen
-    -- (Verhindert Stacking wenn Upgrade gewechselt wird)
-    SetVehicleHandlingFloat(vehicle, "CHandlingData", "fInitialDriveForce",
-        GetVehicleHandlingFloat(vehicle, "CHandlingData", "fInitialDriveForce"))
+    -- Alle Felder die durch irgendein Upgrade verändert werden könnten zurücksetzen,
+    -- bevor neue Werte gesetzt werden. Verhindert Upgrade-Stacking beim Wechsel.
+    for _, upgradeCfg in pairs(Config.Upgrades) do
+        for _, levelCfg in ipairs(upgradeCfg.levels) do
+            for field, _ in pairs(levelCfg.fields) do
+                ResetVehicleHandlingField(vehicle, "CHandlingData", field)
+            end
+        end
+    end
 
     for upgradeKey, level in pairs(upgrades) do
         local upgradeCfg = Config.Upgrades[upgradeKey]
         if upgradeCfg and upgradeCfg.levels[level] then
             local fields = upgradeCfg.levels[level].fields
             for field, value in pairs(fields) do
-                -- Floats direkt setzen
                 SetVehicleHandlingFloat(vehicle, "CHandlingData", field, value)
             end
         end

@@ -188,6 +188,60 @@ Config.Jobs             = {
     },
 
     -- --------------------------------------------------------
+    --  CONTAINER-ANLIEFERUNG  (Level 1)
+    --  Liefert Rohware (Container) vom Hafen zur Fleischfabrik.
+    --  Versorgt fleischfabrik.inputStock → Supply Chain funktioniert.
+    -- --------------------------------------------------------
+    container_anlieferung = {
+        label         = "Container-Anlieferung",
+        description   = "Seefracht-Container vom Hafen zur Fleischfabrik bringen.",
+        minLevel      = 1,
+        vehicleType   = "semi",
+        baseWage      = 3200,
+        wagePerKm     = 95,
+        wagePerTon    = 55,
+        timeBonus     = true,
+        timeLimitMin  = 25,
+        cargo         = {
+            item   = "container",
+            label  = "Seecontainer",
+            weight = 8000,
+            amount = 1,
+        },
+        pickupZones   = { "ladezone_hafen_container" },
+        deliveryZones = { "fabrik_fleisch" },
+        blipColor     = 3,
+        blipSprite    = 477,
+    },
+
+    -- --------------------------------------------------------
+    --  ROHÖL-ANLIEFERUNG  (Level 6)
+    --  Liefert Rohöl/Kraftstoff zur Raffinerie.
+    --  Versorgt raffinerie.inputStock → Supply Chain funktioniert.
+    -- --------------------------------------------------------
+    rohoel_anlieferung = {
+        label         = "Rohöl-Anlieferung",
+        description   = "Rohöl vom Fördergebiet zur Raffinerie transportieren.",
+        minLevel      = 6,
+        vehicleType   = "tanker",
+        baseWage      = 5000,
+        wagePerKm     = 130,
+        wagePerTon    = 85,
+        timeBonus     = false,
+        dangerBonus   = 1.10,
+        cargo         = {
+            item   = "kraftstoff",
+            label  = "Rohöl-Tank",
+            weight = 22000,
+            amount = 1,
+        },
+        pickupZones   = { "dispatcher_industriegebiet" },
+        deliveryZones = { "ladezone_tank" },
+        blipColor     = 46,
+        blipSprite    = 480,
+    },
+
+    -- --------------------------------------------------------
     --  SCHWERTRANSPORT  (Level 15 – High-End Job)
     -- --------------------------------------------------------
     schwer = {

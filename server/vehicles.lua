@@ -14,15 +14,21 @@ local VehicleModule = {}
 -- ────────────────────────────────────────────────────────────
 
 -- Generiert ein Kennzeichen das noch nicht in der DB ist
-local function GenerateUniquePlate(cb)
+local function GenerateUniquePlate(cb, _retries)
+    local retries = _retries or 0
+    if retries >= 10 then
+        -- Sollte in der Praxis nie eintreten, aber Safety-Guard
+        print("[MT] FEHLER: GenerateUniquePlate – max. Versuche erreicht")
+        cb(nil)
+        return
+    end
     local plate = Utils.GeneratePlate()
     MySQL.scalar(
         "SELECT id FROM mt_vehicles WHERE plate = ?",
         { plate },
         function(existing)
             if existing then
-                -- Rekursiv versuchen bis frei
-                GenerateUniquePlate(cb)
+                GenerateUniquePlate(cb, retries + 1)
             else
                 cb(plate)
             end
@@ -92,6 +98,13 @@ local function OnVehicleBuy(source, data)
 
             -- Kennzeichen generieren & in DB speichern
             GenerateUniquePlate(function(plate)
+                if not plate then
+                    _PlayerModule.AddMoney(source, vehicleCfg.price, "Fahrzeugkauf fehlgeschlagen")
+                    TriggerClientEvent("mt:vehicle:buyResult", source, {
+                        success = false, error = "Kennzeichen-Generierung fehlgeschlagen."
+                    })
+                    return
+                end
                 MySQL.insert(
                     [[INSERT INTO mt_vehicles
                       (identifier, plate, model, upgrades, fuel, mileage, stored)

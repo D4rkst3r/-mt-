@@ -39,24 +39,30 @@ end
 -- ────────────────────────────────────────────────────────────
 
 local function OnPlayerLoaded(data)
-    -- Guard: verhindert Infinite Loop
-    -- RegisterNetEvent hört auch auf lokale TriggerEvent-Aufrufe.
-    -- TriggerEvent("mt:player:ready") würde sonst → OnPlayerLoaded → Loop
     if PlayerModule.loaded then return end
 
     PlayerModule.data   = data
     PlayerModule.loaded = true
 
-    -- Lokaler Event mit EIGENEM Namen – NICHT MT.PLAYER_LOADED!
-    TriggerEvent("mt:player:ready", data)
+    -- Spieler an Spawn-Position setzen und aus Ladescreen holen
+    -- spawnmanager übernimmt die Kontrolle über den eigentlichen Spawn-Vorgang
+    exports.spawnmanager:spawnPlayer({
+        x       = -1037.0,  -- Truck-Depot Startposition (aus Config.Zones anpassen)
+        y       = -2731.0,
+        z       = 20.0,
+        heading = 0.0,
+        model   = "mp_m_freemode_01",
+    }, function()
+        -- Lokaler Event mit EIGENEM Namen – NICHT MT.PLAYER_LOADED!
+        TriggerEvent("mt:player:ready", data)
 
-    -- Willkommensnachricht via ox_lib notify
-    lib.notify({
-        title       = "Motor Town",
-        description = ("Willkommen, %s! Level %d"):format(data.name, data.trucking_level),
-        type        = "success",
-        duration    = 5000,
-    })
+        lib.notify({
+            title       = "Motor Town",
+            description = ("Willkommen, %s! Level %d"):format(data.name, data.trucking_level),
+            type        = "success",
+            duration    = 5000,
+        })
+    end)
 end
 
 local function OnMoneyUpdate(cash, bank)

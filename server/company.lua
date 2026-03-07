@@ -236,6 +236,14 @@ local function OnCompanyFound(source, data)
                     "INSERT INTO mt_companies (name, owner, balance) VALUES (?, ?, 0)",
                     { data.name, identifier },
                     function(companyId)
+                        if not companyId then
+                            -- Race Condition: zwei Spieler mit gleichem Namen gleichzeitig
+                            _PlayerModule.AddMoney(source, FOUND_COST, "Firmengründung fehlgeschlagen")
+                            TriggerClientEvent("mt:company:result", source, {
+                                success = false, error = "Firmenname bereits vergeben (Konflikt)."
+                            })
+                            return
+                        end
                         -- Owner als Mitglied eintragen
                         MySQL.insert(
                             [[INSERT INTO mt_company_members

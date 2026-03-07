@@ -32,7 +32,8 @@ Config.Factories            = {
         maxOutputStock    = 40,
         -- Wenn Output-Stock > threshold → neuer Liefer-Job
         deliveryThreshold = 10,
-        deliveryJobKey    = "lebensmittel",
+        -- container_anlieferung-Job liefert Container TO fabrik_fleisch → erhöht inputStock
+        deliveryJobKey    = "container_anlieferung",
     },
 
     -- --------------------------------------------------------
@@ -86,7 +87,8 @@ Config.Factories            = {
         maxInputStock     = 10,
         maxOutputStock    = 30,
         deliveryThreshold = 8,
-        deliveryJobKey    = "tank",
+        -- rohoel_anlieferung-Job liefert Rohöl TO ladezone_tank → erhöht inputStock
+        deliveryJobKey    = "rohoel_anlieferung",
     },
 }
 
@@ -120,12 +122,6 @@ Config.Consumers            = {
         rate       = 4,
     },
 }
-
--- ────────────────────────────────────────────────────────────
---  Loop-Intervalle (Millisekunden)
--- ────────────────────────────────────────────────────────────
-Config.ProductionTickMs     = 5 * 60 * 1000 -- Produktion alle 5 Min
-Config.ConsumerTickMs       = 10 * 60 * 1000 -- Verbrauch alle 10 Min
 
 -- Minimaler Stock-Level unter dem DRINGEND neue Jobs generiert werden
 Config.UrgentStockThreshold = 5

@@ -14,12 +14,12 @@ local TownBonusModule    = {}
 -- Live-State: [zoneKey] = bonus (1.0 – 2.0)
 local bonusTable         = {}
 
--- Konstanten aus Config (Fallbacks falls Config noch nicht gesetzt)
-local BONUS_PER_DELIVERY = 0.05
-local BONUS_DECAY_RATE   = 0.02
-local BONUS_MIN          = 1.0
-local BONUS_MAX          = 2.0
-local DECAY_INTERVAL_MS  = 10 * 60 * 1000
+-- Konstanten aus Config
+local BONUS_PER_DELIVERY = Config.BonusPerDelivery  or 0.05
+local BONUS_DECAY_RATE   = Config.BonusDecayRate    or 0.02
+local BONUS_MIN          = Config.BonusMin          or 1.0
+local BONUS_MAX          = Config.BonusMax          or 2.0
+local DECAY_INTERVAL_MS  = Config.BonusDecayMs      or (10 * 60 * 1000)
 
 -- ────────────────────────────────────────────────────────────
 --  DB: Laden & Speichern
@@ -181,6 +181,42 @@ end
 
 function TownBonusModule.GetBonus(zoneKey)
     return bonusTable[zoneKey] or 1.0
+end
+
+-- Gibt den aktuellen Bonus für eine Ablieferzone zurück,
+-- indem die räumlich nächste Bonus-Zone per Koordinaten gesucht wird.
+-- Wird von server/jobs.lua für die Lohnberechnung genutzt.
+function TownBonusModule.GetBonusForDelivery(deliveryZoneKey)
+    local deliveryZone = Config.Zones and Config.Zones[deliveryZoneKey]
+    if not deliveryZone then return 1.0 end
+
+    -- Koordinaten der Ablieferzone ermitteln
+    local coords = deliveryZone.coords
+    if not coords and deliveryZone.type == "poly" and deliveryZone.points then
+        local cx, cy = 0, 0
+        for _, p in ipairs(deliveryZone.points) do cx = cx + p.x; cy = cy + p.y end
+        local n = #deliveryZone.points
+        coords = { x = cx / n, y = cy / n }
+    end
+    if not coords then return 1.0 end
+
+    -- Nächste Bonus-Zone suchen (identische Logik wie OnDelivery)
+    local nearestKey  = nil
+    local nearestDist = math.huge
+    for _, zoneData in pairs(Config.Zones) do
+        if zoneData.bonusZone and zoneData.zoneKey and zoneData.points then
+            local cx, cy = 0, 0
+            for _, p in ipairs(zoneData.points) do cx = cx + p.x; cy = cy + p.y end
+            local n    = #zoneData.points
+            local dist = Utils.Distance2D(coords, { x = cx / n, y = cy / n })
+            if dist < nearestDist then
+                nearestDist = dist
+                nearestKey  = zoneData.zoneKey
+            end
+        end
+    end
+
+    return nearestKey and (bonusTable[nearestKey] or 1.0) or 1.0
 end
 
 -- ────────────────────────────────────────────────────────────

@@ -79,8 +79,8 @@ local function OpenMembersMenu()
 
     -- Mitglieder auflisten
     for _, member in ipairs(companyData.members) do
-        local isSelf = member.identifier == exports["motortown"]:GetPlayerData() and
-            exports["motortown"]:GetPlayerData().identifier
+        local playerData = exports["motortown"]:GetPlayerData()
+        local isSelf     = playerData and (member.identifier == playerData.identifier)
 
         table.insert(options, {
             title       = ("%s  %s"):format(RoleLabel(member.role), member.name or "Unbekannt"),
