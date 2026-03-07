@@ -44,24 +44,33 @@ local function OnPlayerLoaded(data)
     PlayerModule.data   = data
     PlayerModule.loaded = true
 
-    -- Spieler an Spawn-Position setzen und aus Ladescreen holen
-    -- spawnmanager übernimmt die Kontrolle über den eigentlichen Spawn-Vorgang
-    exports.spawnmanager:spawnPlayer({
-        x       = -1037.0,  -- Truck-Depot Startposition (aus Config.Zones anpassen)
-        y       = -2731.0,
-        z       = 20.0,
-        heading = 0.0,
-        model   = "mp_m_freemode_01",
-    }, function()
-        -- Lokaler Event mit EIGENEM Namen – NICHT MT.PLAYER_LOADED!
-        TriggerEvent("mt:player:ready", data)
+    -- Spawn in eigenem Thread – NetEvent-Handler darf nicht blockieren
+    CreateThread(function()
+        exports.spawnmanager:setAutoSpawn(false)
 
-        lib.notify({
-            title       = "Motor Town",
-            description = ("Willkommen, %s! Level %d"):format(data.name, data.trucking_level),
-            type        = "success",
-            duration    = 5000,
+        -- Spawn-Punkt registrieren → gibt Index zurück
+        local spawnId = exports.spawnmanager:addSpawnPoint({
+            x       = 213.7,  -- dispatcher_stadtmitte
+            y       = -810.5,
+            z       = 30.7,
+            heading = 0.0,
+            model   = "mp_m_freemode_01",
         })
+
+        -- spawnPlayer(index, callback) – das ist die einzige Form die einen Callback unterstützt
+        exports.spawnmanager:spawnPlayer(spawnId, function(spawn)
+            -- Spawn-Punkt wieder entfernen (wird nur einmal gebraucht)
+            exports.spawnmanager:removeSpawnPoint(spawnId)
+
+            TriggerEvent("mt:player:ready", data)
+
+            lib.notify({
+                title       = "Motor Town",
+                description = ("Willkommen, %s! Level %d"):format(data.name, data.trucking_level),
+                type        = "success",
+                duration    = 5000,
+            })
+        end)
     end)
 end
 
