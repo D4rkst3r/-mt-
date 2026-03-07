@@ -107,6 +107,11 @@ local function SpawnVehicle(data, spawnCoords, heading)
             upgrades = data.upgrades or {},
         }
 
+        -- Kilometerzähler auf DB-Stand setzen
+        if _HudModule then
+            _HudModule.SetOdometerBase(data.mileage or 0)
+        end
+
         -- Schadensüberwachung starten
         VehicleModule.StartDamageThread()
 
@@ -546,11 +551,12 @@ end
 
 local function DoStoreVehicle(vehicleData)
     pendingStorePlate = vehicleData.plate
-    local fuel = GetVehicleFuelLevel(vehicleData.entity)
+    local fuel        = GetVehicleFuelLevel(vehicleData.entity)
+    local mileage     = _HudModule and _HudModule.GetOdometer() or 0
     TriggerServerEvent(MT.VEHICLE_STORE, {
         plate   = vehicleData.plate,
         fuel    = Utils.Round(fuel, 0),
-        mileage = 0,
+        mileage = Utils.Round(mileage, 1),
     })
 end
 
