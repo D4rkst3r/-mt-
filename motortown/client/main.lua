@@ -15,6 +15,7 @@ AddEventHandler("onClientResourceStart", function(resourceName)
 
     _PlayerModule.Init()
     _ZoneModule.Init()
+    _BlipsModule.Init()
     _JobModule.Init()
     _VehicleModule.Init()
     _CompanyModule.Init()

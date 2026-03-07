@@ -4,7 +4,7 @@ game 'gta5'
 name 'motortown'
 description 'Motor Town – custom FiveM recreation'
 author 'D4rkst3r'
-version '1.0.0'
+version '1.0.2'
 
 -- Shared: geladen auf Client UND Server
 -- WICHTIG: nur EIN shared_scripts-Block erlaubt, sonst wird der erste ignoriert!
@@ -36,6 +36,7 @@ server_scripts {
 client_scripts {
     'client/player.lua',
     'client/zones.lua',
+    'client/blips.lua',
     'client/jobs.lua',
     'client/vehicles.lua',
     'client/company.lua',

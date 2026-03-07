@@ -23,12 +23,12 @@ Config.StartLevel           = 1
 -- ────────────────────────────────────────────────────────────
 --  Job-System
 -- ────────────────────────────────────────────────────────────
-Config.XPPerKm              = 10 -- XP pro Kilometer gefahren
-Config.XPBaseDelivery       = 50 -- Fix-XP pro abgeschlossener Lieferung
+Config.XPPerKm              = 10   -- XP pro Kilometer gefahren
+Config.XPBaseDelivery       = 50   -- Fix-XP pro abgeschlossener Lieferung
 Config.MaxJobDistance       = 80.0 -- Meter: Abstand zur Zielzone für Ablieferung
 Config.LoadProgressMs       = 5000 -- Millisekunden Ladevorgang
 Config.UnloadProgressMs     = 4000 -- Millisekunden Abliefervorgang
-Config.JobRequestCooldown   = 3 -- Sekunden zwischen Job-Anfragen (Rate-Limit)
+Config.JobRequestCooldown   = 3    -- Sekunden zwischen Job-Anfragen (Rate-Limit)
 
 -- ────────────────────────────────────────────────────────────
 --  Fahrzeug-System
@@ -87,5 +87,5 @@ Config.HudDefaults          = {
 -- ────────────────────────────────────────────────────────────
 --  Debug
 -- ────────────────────────────────────────────────────────────
-Config.Debug                = false -- Zusätzliche Print-Ausgaben
-Config.DebugZones           = false -- Zonen-Grenzen in der Welt anzeigen
+Config.Debug                = true -- Zusätzliche Print-Ausgaben
+Config.DebugZones           = true -- Zonen-Grenzen in der Welt anzeigen
