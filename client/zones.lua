@@ -25,20 +25,52 @@ local inZoneData  = nil
 --  Läuft immer, ist aber fast kostenlos wenn keine Zone aktiv.
 -- ────────────────────────────────────────────────────────────
 
+-- Sammelt alle verfügbaren Aktionen einer Zone
+local function CollectZoneActions(zoneData)
+    local actions = {}
+    if not zoneData.targets then return actions end
+    for _, targetKey in ipairs(zoneData.targets) do
+        local targetDef = Config.Targets[targetKey]
+        if targetDef then
+            for _, action in ipairs(targetDef) do
+                table.insert(actions, action)
+            end
+        end
+    end
+    return actions
+end
+
 CreateThread(function()
     while true do
         if inZone and inZoneData and inZoneData.targets then
             -- E = Control 38
             if IsControlJustPressed(0, 38) then
-                -- Erste Aktion der ersten Target-Definition auslösen
-                local fired = false
-                for _, targetKey in ipairs(inZoneData.targets) do
-                    local targetDef = Config.Targets[targetKey]
-                    if targetDef and targetDef[1] then
-                        TriggerEvent(targetDef[1].event, inZoneName, inZoneData)
-                        fired = true
-                        break
+                local actions = CollectZoneActions(inZoneData)
+
+                if #actions == 1 then
+                    -- Nur eine Aktion → direkt feuern
+                    TriggerEvent(actions[1].event, inZoneName, inZoneData)
+                elseif #actions > 1 then
+                    -- Mehrere Aktionen → Menü anzeigen
+                    local options = {}
+                    for _, action in ipairs(actions) do
+                        local ev    = action.event
+                        local zName = inZoneName
+                        local zData = inZoneData
+                        table.insert(options, {
+                            title    = action.label or ev,
+                            icon     = action.icon or "fas fa-hand-pointer",
+                            onSelect = function()
+                                TriggerEvent(ev, zName, zData)
+                            end,
+                        })
                     end
+                    lib.registerContext({
+                        id      = "mt_zone_actions",
+                        title   = inZoneData.label or "Aktion wählen",
+                        options = options,
+                    })
+                    lib.showContext("mt_zone_actions")
                 end
             end
             Wait(0)   -- aktiv wenn in Zone
@@ -63,11 +95,16 @@ local function MakeCallbacks(zoneName, zoneData)
 
             -- TextUI nur bei interaktiven Zonen (mit Targets)
             if zoneData.targets and #zoneData.targets > 0 and not zoneData.bonusZone then
-                -- Label der ersten Aktion anzeigen
-                local label = zoneData.label or "Interagieren"
-                local targetDef = Config.Targets[zoneData.targets[1]]
-                if targetDef and targetDef[1] and targetDef[1].label then
-                    label = targetDef[1].label
+                local allActions = {}
+                for _, tk in ipairs(zoneData.targets) do
+                    local td = Config.Targets[tk]
+                    if td then for _, a in ipairs(td) do table.insert(allActions, a) end end
+                end
+                local label
+                if #allActions == 1 then
+                    label = allActions[1].label or zoneData.label or "Interagieren"
+                else
+                    label = zoneData.label or "Interagieren"
                 end
                 lib.showTextUI(("[E] %s"):format(label), {
                     position = "left-center",

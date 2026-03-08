@@ -72,6 +72,15 @@ local function SpawnVehicle(data, spawnCoords, heading)
         -- Mission Entity damit GTA es nicht despawnt
         SetEntityAsMissionEntity(vehicle, true, true)
 
+        -- Fahrzeug als "dem Spieler gehörend" markieren – verhindert Hotwire/Starten-Bug
+        SetVehicleHasBeenOwned(vehicle, true)
+        SetVehicleNeedsToBeHotwired(vehicle, false)
+
+        -- Vollständig repariert spawnen (verhindert "kaputt & nicht startbar" Bug)
+        SetVehicleFixed(vehicle)
+        SetVehicleDeformationFixed(vehicle)
+        SetVehicleDirtLevel(vehicle, 0.0)
+
         -- Kennzeichen setzen
         SetVehicleNumberPlateText(vehicle, data.plate)
 
@@ -80,10 +89,7 @@ local function SpawnVehicle(data, spawnCoords, heading)
             ApplyUpgrades(vehicle, data.upgrades)
         end
 
-        -- Motor an
-        SetVehicleEngineOn(vehicle, true, true, false)
-
-        -- Spieler ins Fahrzeug warpen (zuverlässiger als SetPedIntoVehicle)
+        -- Spieler ins Fahrzeug warpen
         local ped = PlayerPedId()
         TaskWarpPedIntoVehicle(ped, vehicle, -1)
 
@@ -93,6 +99,9 @@ local function SpawnVehicle(data, spawnCoords, heading)
             Wait(100)
             timeout = timeout + 1
         end
+
+        -- Motor an (NACH dem Einsteigen – verhindert dass GTA den Motor wieder abwürgt)
+        SetVehicleEngineOn(vehicle, true, true, false)
 
         -- Wenn Warp fehlgeschlagen: Wegpunkt setzen damit Spieler Fahrzeug findet
         if GetVehiclePedIsIn(ped, false) ~= vehicle then
@@ -558,7 +567,7 @@ local STORE_RADIUS = 15.0 -- Meter – Fahrzeug muss innerhalb stehen
 local function GetNearbyOwnVehicles(garageCoords)
     local found = {}
 
-    -- Eigenes aktuell gespawntes Fahrzeug
+    -- Eigenes aktuell getracktetes Fahrzeug
     if spawnedVehicle and DoesEntityExist(spawnedVehicle.entity) then
         local vehCoords = GetEntityCoords(spawnedVehicle.entity)
         local dist      = #(garageCoords - vehCoords)
@@ -569,6 +578,24 @@ local function GetNearbyOwnVehicles(garageCoords)
                 id     = spawnedVehicle.id,
                 dist   = Utils.Round(dist, 1),
             })
+        end
+    else
+        -- Fallback: spawnedVehicle nicht gesetzt (z.B. nach Resource-Restart)
+        -- Prüfe Fahrzeug in dem der Spieler gerade sitzt
+        local ped     = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if vehicle and vehicle ~= 0 then
+            local vehCoords = GetEntityCoords(vehicle)
+            local dist      = #(garageCoords - vehCoords)
+            if dist <= STORE_RADIUS then
+                local plate = GetVehicleNumberPlateText(vehicle):gsub("%s+", "")
+                table.insert(found, {
+                    entity = vehicle,
+                    plate  = plate,
+                    id     = nil,
+                    dist   = Utils.Round(dist, 1),
+                })
+            end
         end
     end
 
