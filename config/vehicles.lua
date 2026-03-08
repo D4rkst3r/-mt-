@@ -383,3 +383,44 @@ Config.RequiresTrailer      = {
     garbage      = false,
     heavyhaul    = false,
 }
+
+-- ────────────────────────────────────────────────────────────
+--  Trailer-Kapazitäten für das Cargo-System
+--
+--  capacity              = Maximale Item-Einheiten pro Trailer
+--  acceptedCategories    = Welche Item-Kategorien passen rein
+--  label                 = Anzeigename im NUI
+--
+--  Fahrzeuge ohne eigenen Trailer (kipper, garbage):
+--  Kapazität gilt für das Fahrzeug selbst.
+-- ────────────────────────────────────────────────────────────
+Config.TrailerCapacity      = {
+
+    -- Standard Sattelauflieger
+    trailers    = { capacity = 30, label = "Standard-Auflieger", acceptedCategories = { "rohstoff", "industrie", "lebensmittel" } },
+    trailers2   = { capacity = 40, label = "XL-Sattelauflieger", acceptedCategories = { "rohstoff", "industrie", "lebensmittel" } },
+    trailers3   = { capacity = 25, label = "Kühlauflieger", acceptedCategories = { "gekuehlt", "lebensmittel", "fluessigkeit" } },
+    trailers4   = { capacity = 35, label = "Schwerlastauflieger", acceptedCategories = { "rohstoff", "industrie" } },
+
+    -- Tanker
+    tanker      = { capacity = 20, label = "Tankauflieger", acceptedCategories = { "fluessigkeit" } },
+    tanker2     = { capacity = 30, label = "Doppelkammer-Tanker", acceptedCategories = { "fluessigkeit" } },
+
+    -- Tieflader
+    flatbed     = { capacity = 15, label = "Tieflader", acceptedCategories = { "rohstoff", "industrie" } },
+    flatbed2    = { capacity = 20, label = "Tieflader XL", acceptedCategories = { "rohstoff", "industrie" } },
+    baletrailer = { capacity = 25, label = "Ballen-Trailer", acceptedCategories = { "rohstoff", "lebensmittel" } },
+
+    -- Kipper (kein eigener Trailer – Fahrzeugladung)
+    dump        = { capacity = 35, label = "Muldenkipper", acceptedCategories = { "rohstoff" } },
+    tipper      = { capacity = 20, label = "Kipper", acceptedCategories = { "rohstoff" } },
+    tipper2     = { capacity = 28, label = "Kipper SX", acceptedCategories = { "rohstoff" } },
+
+    -- Müllfahrzeuge
+    trash       = { capacity = 20, label = "Müllfahrzeug", acceptedCategories = { "rohstoff", "industrie" } },
+    trash2      = { capacity = 30, label = "Müllfahrzeug XL", acceptedCategories = { "rohstoff", "industrie" } },
+
+    -- Kühlfahrzeuge (Mule-Typen – kein Trailer)
+    mule4       = { capacity = 20, label = "Kühlfahrzeug", acceptedCategories = { "gekuehlt", "lebensmittel" } },
+    mule5       = { capacity = 28, label = "Kühlfahrzeug LWB", acceptedCategories = { "gekuehlt", "lebensmittel" } },
+}

@@ -144,3 +144,16 @@ CREATE TABLE IF NOT EXISTS `mt_config` (
     `updated_by` VARCHAR(60)  NOT NULL DEFAULT 'system',
     PRIMARY KEY (`category`, `key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ------------------------------------------------------------
+--  Cargo-Tracking  (persistiert aktives Cargo über Restarts)
+--  Wird geleert wenn Spieler erfolgreich abliefert.
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mt_cargo` (
+    `identifier`    VARCHAR(60)     NOT NULL,
+    `items`         JSON            NOT NULL DEFAULT ('{}'),
+    `trailer_model` VARCHAR(50)     NOT NULL DEFAULT '',
+    `pickup_zone`   VARCHAR(60)     NOT NULL DEFAULT '',
+    `loaded_at`     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`identifier`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

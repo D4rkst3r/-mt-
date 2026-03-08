@@ -2246,3 +2246,233 @@ window.addEventListener("message", (e) => {
     }
   });
 })();
+
+// ══════════════════════════════════════════════════════
+//  CARGO LOAD PANEL
+// ══════════════════════════════════════════════════════
+(function CargoLoadPanel() {
+  const CAT_LABELS = {
+    rohstoff: "Rohstoff",
+    fluessigkeit: "Flüssigkeit",
+    gekuehlt: "Gekühlt",
+    lebensmittel: "Lebensmittel",
+    industrie: "Industrie",
+  };
+  const fmt = (n) => Number(n).toLocaleString("de-DE") + " $";
+
+  const overlay = document.getElementById("cargo-load-overlay");
+  const title = document.getElementById("cgl-title");
+  const sub = document.getElementById("cgl-sub");
+  const trLabel = document.getElementById("cgl-trailer-label");
+  const capNums = document.getElementById("cgl-cap-nums");
+  const capFill = document.getElementById("cgl-cap-fill");
+  const usedEl = document.getElementById("cgl-used");
+  const itemsEl = document.getElementById("cgl-items");
+  document.getElementById("cgl-close").addEventListener("click", closeLoad);
+
+  let zoneKey = "";
+  let capData = { capacity: 0, usedSlots: 0 };
+
+  function closeLoad() {
+    overlay.classList.add("hidden");
+    fetch("https://motortown/cargoLoadClose", { method: "POST", body: "{}" });
+  }
+
+  function updateCapBar(used, capacity) {
+    const pct = capacity > 0 ? Math.round((used / capacity) * 100) : 0;
+    capFill.style.width = pct + "%";
+    capFill.className = "cargo-cap-fill" + (pct >= 100 ? " full" : "");
+    usedEl.textContent = used;
+    const numsSpan = capNums.querySelector("span") || capNums;
+    capNums.innerHTML = `<span>${used}</span> / ${capacity} Slots`;
+  }
+
+  function open(data) {
+    zoneKey = data.zone || "";
+    title.textContent = "📦 " + (data.label || "Cargo laden");
+    sub.textContent = data.trailer ? "🚛 " + data.trailer : "";
+    trLabel.textContent = data.trailer || "Trailer";
+    capData = { capacity: data.capacity || 0, usedSlots: data.usedSlots || 0 };
+    updateCapBar(capData.usedSlots, capData.capacity);
+    buildItems(data.items || []);
+    overlay.classList.remove("hidden");
+  }
+
+  function buildItems(items) {
+    itemsEl.innerHTML = "";
+    if (items.length === 0) {
+      itemsEl.innerHTML =
+        '<div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,.28);padding:40px 0;">Keine kompatiblen Waren verfügbar.</div>';
+      return;
+    }
+    for (const item of items) {
+      itemsEl.appendChild(buildCard(item));
+    }
+  }
+
+  function buildCard(item) {
+    const card = document.createElement("div");
+    const noStock = item.stock <= 0 || item.maxAmount <= 0;
+    card.className = "cargo-item-card" + (noStock ? " no-stock" : "");
+
+    const catLabel = CAT_LABELS[item.category] || item.category;
+    const badges = [
+      `<span class="cargo-badge cargo-badge-cat">${catLabel}</span>`,
+      `<span class="cargo-badge cargo-badge-stock">⬟ ${item.stock}</span>`,
+      item.perishable
+        ? `<span class="cargo-badge cargo-badge-perishable">🕐 Verderblich</span>`
+        : "",
+      item.dangerous
+        ? `<span class="cargo-badge cargo-badge-danger">⚠ Gefahrgut</span>`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("");
+
+    card.innerHTML = `
+            <div class="cargo-item-top">
+                <div class="cargo-item-icon">${item.icon || "📦"}</div>
+                <div class="cargo-item-info">
+                    <div class="cargo-item-name">${item.label}</div>
+                    <div class="cargo-item-badges">${badges}</div>
+                </div>
+            </div>
+            <div class="cargo-item-ctrl">
+                <button class="cargo-qty-btn minus">−</button>
+                <input type="number" class="cargo-qty-input"
+                    value="${Math.min(item.maxAmount, 1)}"
+                    min="1" max="${item.maxAmount}"
+                    data-max="${item.maxAmount}">
+                <span class="cargo-qty-max">max ${item.maxAmount}</span>
+            </div>
+            <button class="cargo-item-load-btn">📦 Laden</button>`;
+
+    const input = card.querySelector(".cargo-qty-input");
+    const minus = card.querySelector(".minus");
+    const btn = card.querySelector(".cargo-item-load-btn");
+
+    // Minus-Button
+    minus.addEventListener("click", () => {
+      const v = parseInt(input.value) - 1;
+      input.value = Math.max(1, v);
+    });
+    // Plus kommt aus input max + steping
+    card
+      .querySelector(".cargo-qty-btn:not(.minus)")
+      ?.addEventListener("click", () => {
+        const v = parseInt(input.value) + 1;
+        input.value = Math.min(item.maxAmount, v);
+      });
+
+    // Lade-Button
+    btn.addEventListener("click", () => {
+      const amount = parseInt(input.value) || 1;
+      fetch("https://motortown/cargoLoadConfirm", {
+        method: "POST",
+        body: JSON.stringify({ zone: zoneKey, item: item.key, amount }),
+      });
+      overlay.classList.add("hidden");
+    });
+
+    return card;
+  }
+
+  // Kapazitäts-Update nach Laden (ohne Panel neu öffnen)
+  function onCargoUpdate(data) {
+    capData.usedSlots = data.loaded || 0;
+    capData.capacity = data.capacity || capData.capacity;
+    updateCapBar(capData.usedSlots, capData.capacity);
+  }
+
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (d.action === "cargoLoadOpen") open(d);
+    if (d.action === "cargoLoadClose") overlay.classList.add("hidden");
+    if (d.action === "cargoStateUpdate") onCargoUpdate(d);
+  });
+})();
+
+// ══════════════════════════════════════════════════════
+//  CARGO UNLOAD PANEL
+// ══════════════════════════════════════════════════════
+(function CargoUnloadPanel() {
+  const fmt = (n) => Number(n).toLocaleString("de-DE") + " $";
+  const overlay = document.getElementById("cargo-unload-overlay");
+  const titleEl = document.getElementById("cgu-title");
+  const subEl = document.getElementById("cgu-sub");
+  const listEl = document.getElementById("cgu-list");
+  const totalEl = document.getElementById("cgu-total");
+  const confirmEl = document.getElementById("cgu-confirm");
+  document.getElementById("cgu-close").addEventListener("click", closeUnload);
+
+  let zoneKey = "";
+  let matches = [];
+
+  function closeUnload() {
+    overlay.classList.add("hidden");
+    fetch("https://motortown/cargoUnloadClose", { method: "POST", body: "{}" });
+  }
+
+  function open(data) {
+    zoneKey = data.zone || "";
+    matches = data.matches || [];
+    titleEl.textContent = "📤 Abliefern: " + (data.label || "");
+    subEl.textContent = matches.length + " Waren werden angenommen";
+
+    listEl.innerHTML = "";
+    let grand = 0;
+    for (const m of matches) {
+      grand += m.totalPay || 0;
+      listEl.appendChild(buildRow(m));
+    }
+    totalEl.textContent = fmt(grand);
+    overlay.classList.remove("hidden");
+  }
+
+  function buildRow(m) {
+    const row = document.createElement("div");
+    row.className = "cargo-unload-row";
+
+    let penaltyNote = "";
+    let payClass = "";
+    if (m.penalty === 0) {
+      penaltyNote = " ❌ Verdorben";
+      payClass = " spoiled";
+    } else if (m.penalty < 1) {
+      penaltyNote = ` ⚠ ${Math.round(m.penalty * 100)}% Frische`;
+      payClass = " penalty";
+    }
+
+    row.innerHTML = `
+            <div class="cargo-unload-icon">${m.icon || "📦"}</div>
+            <div class="cargo-unload-info">
+                <div class="cargo-unload-name">${m.label}</div>
+                <div class="cargo-unload-meta">
+                    ${m.deliverable} von ${m.inTrailer} Einheiten${penaltyNote}
+                    &nbsp;·&nbsp; ${fmt(m.pricePerUnit)} / Stück
+                </div>
+            </div>
+            <div class="cargo-unload-pay">
+                <div class="cargo-unload-pay-val${payClass}">${fmt(m.totalPay)}</div>
+                <div class="cargo-unload-pay-lbl">Lohn</div>
+            </div>`;
+    return row;
+  }
+
+  confirmEl.addEventListener("click", () => {
+    if (matches.length === 0) return;
+    const items = {};
+    for (const m of matches) items[m.key] = m.deliverable;
+    fetch("https://motortown/cargoUnloadConfirm", {
+      method: "POST",
+      body: JSON.stringify({ zone: zoneKey, items }),
+    });
+    overlay.classList.add("hidden");
+  });
+
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (d.action === "cargoUnloadOpen") open(d);
+    if (d.action === "cargoUnloadClose") overlay.classList.add("hidden");
+  });
+})();

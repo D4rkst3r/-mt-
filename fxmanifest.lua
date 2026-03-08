@@ -14,9 +14,11 @@ shared_scripts {
     'shared/utils.lua',
     'config/config.lua',
     'config/jobs.lua',
+    'config/items.lua', -- NEU: Item-Definitionen
     'config/vehicles.lua',
     'config/zones.lua',
     'config/supplychain.lua',
+    'config/deliverypoints.lua', -- NEU: Pickup/Delivery-Konfiguration
 }
 
 -- Server-seitige Skripte (Reihenfolge: Bootstrap zuletzt,
@@ -24,10 +26,11 @@ shared_scripts {
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/player.lua',
-    'server/admin.lua', -- vor main.lua: lädt Overrides bevor andere Module starten
+    'server/admin.lua',
     'server/jobs.lua',
     'server/vehicles.lua',
     'server/company.lua',
+    'server/cargo.lua', -- NEU: Item-Cargo-System
     'server/supplychain.lua',
     'server/townbonus.lua',
     'server/main.lua',
@@ -39,6 +42,7 @@ client_scripts {
     'client/zones.lua',
     'client/blips.lua',
     'client/jobs.lua',
+    'client/cargo.lua', -- NEU: Item-Cargo-System (nach jobs.lua!)
     'client/vehicles.lua',
     'client/company.lua',
     'client/supplychain.lua',

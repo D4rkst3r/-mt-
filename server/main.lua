@@ -20,6 +20,7 @@ CreateThread(function()
         _VehicleModule.Init()
         _JobModule.Init()
         _CompanyModule.Init()
+        _CargoModule.Init() -- NEU: Item-Cargo-System
         _SupplyChainModule.Init()
         _TownBonusModule.Init()
 

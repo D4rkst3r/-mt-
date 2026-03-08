@@ -339,6 +339,54 @@
     </div>
 
     <!-- ═══════════════════════════════════════════
+         CARGO LOAD PANEL
+    ════════════════════════════════════════════ -->
+    <div id="cargo-load-overlay" class="hidden">
+        <div id="cargo-load-panel">
+            <div class="cargo-header">
+                <div class="cargo-header-left">
+                    <div class="cargo-panel-title" id="cgl-title">📦 Cargo laden</div>
+                    <div class="cargo-panel-sub" id="cgl-sub"></div>
+                </div>
+                <button class="cargo-close" id="cgl-close">✕</button>
+            </div>
+            <div class="cargo-cap-bar">
+                <div class="cargo-cap-row">
+                    <span class="cargo-cap-label" id="cgl-trailer-label">Trailer</span>
+                    <span class="cargo-cap-nums" id="cgl-cap-nums"><span id="cgl-used">0</span> / 0 Slots</span>
+                </div>
+                <div class="cargo-cap-track">
+                    <div class="cargo-cap-fill" id="cgl-cap-fill" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="cargo-items-grid" id="cgl-items"></div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         CARGO UNLOAD PANEL
+    ════════════════════════════════════════════ -->
+    <div id="cargo-unload-overlay" class="hidden">
+        <div id="cargo-unload-panel">
+            <div class="cargo-header">
+                <div class="cargo-header-left">
+                    <div class="cargo-panel-title" id="cgu-title">📤 Cargo abliefern</div>
+                    <div class="cargo-panel-sub" id="cgu-sub"></div>
+                </div>
+                <button class="cargo-close" id="cgu-close">✕</button>
+            </div>
+            <div class="cargo-unload-list" id="cgu-list"></div>
+            <div class="cargo-unload-footer">
+                <div class="cargo-total-row">
+                    <span class="cargo-total-label">Gesamtlohn</span>
+                    <span class="cargo-total-val" id="cgu-total">$0</span>
+                </div>
+                <button class="cargo-confirm-btn" id="cgu-confirm">Jetzt abliefern ✓</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
          DEALER PANEL
     ════════════════════════════════════════════ -->
     <div id="dealer-overlay" class="veh-overlay hidden">
