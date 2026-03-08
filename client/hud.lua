@@ -290,7 +290,12 @@ function HudModule.Init()
 
         StartVehicleThread()
         StartInputThread()
-        SetInterval(UpdateAll, Config.HudUpdateMs)
+        CreateThread(function()
+            while true do
+                Wait(Config.HudUpdateMs)
+                UpdateAll()
+            end
+        end)
 
         lib.notify({
             title       = Config.ServerName,

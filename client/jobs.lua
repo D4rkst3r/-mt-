@@ -228,15 +228,9 @@ local function StartLoading(zoneName, zoneData)
 
     -- ── Trailer-Check ────────────────────────────────────────
     local vType = currentJob.vehicleType
-    print(("[MT][DEBUG] StartLoading vType=%s RequiresTrailer=%s"):format(
-        tostring(vType),
-        tostring(vType and Config.RequiresTrailer and Config.RequiresTrailer[vType])
-    ))
 
     if vType and Config.RequiresTrailer and Config.RequiresTrailer[vType] then
         local trailerOk = IsCorrectTrailerAttached(vehicle, vType)
-        print(("[MT][DEBUG] IsCorrectTrailerAttached=%s vehicle=%s"):format(
-            tostring(trailerOk), tostring(vehicle)))
 
         if not trailerOk then
             -- Trailer spawnen anbieten
@@ -249,11 +243,8 @@ local function StartLoading(zoneName, zoneData)
                     centered = true,
                     cancel   = true,
                 })
-                print(("[MT][DEBUG] alertDialog confirm=%s"):format(tostring(confirm)))
                 if confirm == "confirm" then
                     SpawnTrailer(vType, function(trailer, modelName)
-                        print(("[MT][DEBUG] SpawnTrailer cb trailer=%s model=%s"):format(
-                            tostring(trailer), tostring(modelName)))
                         if trailer then
                             lib.notify({
                                 title       = "🚛 Trailer gespawnt",

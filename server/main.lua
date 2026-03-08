@@ -69,7 +69,7 @@ RegisterCommand("mt_setlevel", function(source, args)
         print("[MT] Spieler nicht gefunden")
         return
     end
-    local xpNeeded = (level - 1) * (Config.XPPerLevel or 1000)
+    local xpNeeded = Utils.XPForLevel(level)
     MySQL.update(
         "UPDATE mt_players SET trucking_level = ?, trucking_xp = ? WHERE identifier = ?",
         { level, xpNeeded, data.identifier }

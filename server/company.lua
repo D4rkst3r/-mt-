@@ -31,10 +31,7 @@ local ROUTE_TICK_MS    = 30 * 60 * 1000 -- 30 Minuten
 -- ────────────────────────────────────────────────────────────
 
 local function GetIdentifier(source)
-    for _, v in ipairs(GetPlayerIdentifiers(source)) do
-        if v:sub(1, 8) == "license:" then return v end
-    end
-    return nil
+    return Utils.GetIdentifier(source)
 end
 
 -- Lädt Company komplett aus DB in Cache
@@ -404,7 +401,9 @@ end
 
 local function OnMemberKick(data)
     local source = source
-    if not data or not data.targetIdentifier then return end
+    -- NUI-Panel schickt data.identifier, Legacy-Event schickt data.targetIdentifier
+    local targetId = data and (data.identifier or data.targetIdentifier)
+    if not targetId then return end
 
     local identifier = GetIdentifier(source)
     if not identifier then return end
@@ -418,7 +417,7 @@ local function OnMemberKick(data)
         end
 
         -- Owner kann sich nicht selbst rauswerfen
-        if data.targetIdentifier == identifier then
+        if targetId == identifier then
             TriggerClientEvent("mt:company:result", source, {
                 success = false, error = "Du kannst dich nicht selbst entlassen."
             })
@@ -427,8 +426,8 @@ local function OnMemberKick(data)
 
         MySQL.update(
             [[DELETE FROM mt_company_members
-              WHERE company_id = ? AND identifier = ? AND role != 'owner']],
-            { membership.companyId, data.targetIdentifier },
+              WHERE company_id = ? AND identifier = ? AND `role` != 'owner']],
+            { membership.companyId, targetId },
             function(affected)
                 if affected == 0 then
                     TriggerClientEvent("mt:company:result", source, {
@@ -437,12 +436,12 @@ local function OnMemberKick(data)
                     return
                 end
 
-                InvalidateMemberCache(data.targetIdentifier)
+                InvalidateMemberCache(targetId)
 
                 -- Entlassenem Spieler Bescheid geben falls online
                 for _, playerId in ipairs(GetPlayers()) do
                     local pid = tonumber(playerId)
-                    if GetIdentifier(pid) == data.targetIdentifier then
+                    if GetIdentifier(pid) == targetId then
                         TriggerClientEvent(MT.COMPANY_MEMBER_KICK, pid, {})
                         break
                     end
@@ -450,6 +449,52 @@ local function OnMemberKick(data)
 
                 TriggerClientEvent("mt:company:result", source, {
                     success = true, action = "kicked"
+                })
+            end
+        )
+    end)
+end
+
+-- ────────────────────────────────────────────────────────────
+--  Net Events: Mitglied befördern (driver → manager)
+-- ────────────────────────────────────────────────────────────
+
+local function OnMemberPromote(data)
+    local source = source
+    if not data or not data.identifier then return end
+
+    local actorId = GetIdentifier(source)
+    if not actorId then return end
+
+    GetMembership(actorId, function(membership)
+        if not membership or membership.role == "driver" then
+            TriggerClientEvent("mt:company:result", source, {
+                success = false, error = "Keine Berechtigung."
+            })
+            return
+        end
+
+        if data.identifier == actorId then
+            TriggerClientEvent("mt:company:result", source, {
+                success = false, error = "Du kannst dich nicht selbst befördern."
+            })
+            return
+        end
+
+        MySQL.update(
+            [[UPDATE mt_company_members SET `role` = 'manager'
+              WHERE company_id = ? AND identifier = ? AND `role` = 'driver']],
+            { membership.companyId, data.identifier },
+            function(affected)
+                if affected == 0 then
+                    TriggerClientEvent("mt:company:result", source, {
+                        success = false, error = "Spieler nicht gefunden oder bereits Manager."
+                    })
+                    return
+                end
+                InvalidateMemberCache(data.identifier)
+                TriggerClientEvent("mt:company:result", source, {
+                    success = true, action = "promoted"
                 })
             end
         )
@@ -648,7 +693,9 @@ function CompanyModule.Init()
     RegisterNetEvent("mt:company:found", OnCompanyFound)
     RegisterNetEvent("mt:company:dataRequest", OnCompanyDataRequest)
     RegisterNetEvent(MT.COMPANY_MEMBER_ADD, OnMemberInvite)
-    RegisterNetEvent(MT.COMPANY_MEMBER_KICK, OnMemberKick)
+    RegisterNetEvent(MT.COMPANY_MEMBER_KICK, OnMemberKick) -- legacy
+    RegisterNetEvent("mt:company:kick", OnMemberKick)      -- NUI-Panel
+    RegisterNetEvent("mt:company:promote", OnMemberPromote)
     RegisterNetEvent("mt:company:routeCreate", OnRouteCreate)
     RegisterNetEvent("mt:company:routeToggle", OnRouteToggle)
     RegisterNetEvent("mt:company:deposit", OnCompanyDeposit)
@@ -662,7 +709,12 @@ function CompanyModule.Init()
     end)
 
     -- NPC-Routen Simulation
-    SetInterval(RunRouteTick, ROUTE_TICK_MS)
+    CreateThread(function()
+        while true do
+            Wait(ROUTE_TICK_MS)
+            RunRouteTick()
+        end
+    end)
 
     exports("GetMembership", CompanyModule.GetMembership)
 

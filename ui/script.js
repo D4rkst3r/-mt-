@@ -1812,3 +1812,437 @@ window.addEventListener("message", (e) => {
     if (d.action === "factoryUpdate") updateFactory(d.factory);
   });
 })();
+
+// ══════════════════════════════════════════════════════
+//  DEALER PANEL
+// ══════════════════════════════════════════════════════
+(function DealerPanel() {
+  const CAT_ORDER = [
+    "semi",
+    "flatbed",
+    "kipper",
+    "tanker",
+    "garbage",
+    "refrigerated",
+    "heavyhaul",
+  ];
+  const CAT_ICONS = {
+    semi: "🚛",
+    flatbed: "🪵",
+    kipper: "⛏️",
+    tanker: "⛽",
+    garbage: "🗑️",
+    refrigerated: "❄️",
+    heavyhaul: "🏗️",
+  };
+  const CAT_LABELS = {
+    semi: "Sattelzüge",
+    flatbed: "Tieflader",
+    kipper: "Kipper",
+    tanker: "Tanker",
+    garbage: "Müll",
+    refrigerated: "Kühlung",
+    heavyhaul: "Schwerlast",
+  };
+  const TYPE_LBL = {
+    semi: "Sattelzug",
+    flatbed: "Tieflader",
+    kipper: "Kipper",
+    tanker: "Tanker",
+    garbage: "Müllwagen",
+    refrigerated: "Kühler",
+    heavyhaul: "Schwertransport",
+  };
+  const fmt = (n) => Number(n).toLocaleString("de-DE") + " $";
+
+  let allCats = {};
+
+  const overlay = document.getElementById("dealer-overlay");
+  const nav = document.getElementById("dealer-nav");
+  const grid = document.getElementById("dealer-grid");
+  const balEl = document.getElementById("dealer-balance");
+  document.getElementById("dealer-close").addEventListener("click", closePanel);
+
+  function closePanel() {
+    overlay.classList.add("hidden");
+    fetch("https://motortown/dealerClose", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  function open(data) {
+    balEl.textContent = fmt(data.money);
+
+    // Gruppieren nach Kategorie
+    allCats = {};
+    for (const v of data.vehicles) {
+      const cat = v.category || v.vehicleType || "semi";
+      if (!allCats[cat]) allCats[cat] = [];
+      allCats[cat].push(v);
+    }
+    // Jede Kategorie nach Preis sortieren
+    for (const cat in allCats) {
+      allCats[cat].sort((a, b) => a.price - b.price);
+    }
+
+    // Sidebar aufbauen
+    nav.innerHTML = "";
+    const orderedCats = CAT_ORDER.filter((c) => allCats[c]);
+    for (const cat of orderedCats) {
+      const btn = document.createElement("button");
+      btn.className = "dealer-cat-btn";
+      btn.dataset.cat = cat;
+      btn.innerHTML = `
+                <span class="dealer-cat-icon">${CAT_ICONS[cat] || "🚚"}</span>
+                <span class="dealer-cat-label">${CAT_LABELS[cat] || cat}</span>
+                <span class="dealer-cat-count">${allCats[cat].length}</span>`;
+      btn.addEventListener("click", () => selectCat(cat));
+      nav.appendChild(btn);
+    }
+
+    // Erste Kategorie wählen
+    if (orderedCats.length) selectCat(orderedCats[0]);
+    overlay.classList.remove("hidden");
+  }
+
+  function selectCat(cat) {
+    nav
+      .querySelectorAll(".dealer-cat-btn")
+      .forEach((b) => b.classList.toggle("active", b.dataset.cat === cat));
+    grid.innerHTML = "";
+    for (const v of allCats[cat] || []) {
+      grid.appendChild(buildCard(v));
+    }
+  }
+
+  function buildCard(v) {
+    const card = document.createElement("div");
+    card.className = "dealer-card" + (v.locked ? " locked" : "");
+
+    let btnHtml;
+    if (v.locked) {
+      btnHtml = `<button class="dealer-card-btn locked-btn" disabled>🔒 Level ${v.minLevel}</button>`;
+    } else if (!v.canAfford) {
+      btnHtml = `<button class="dealer-card-btn cant-afford-btn" disabled>Kein Geld</button>`;
+    } else {
+      btnHtml = `<button class="dealer-card-btn buy-btn">Kaufen</button>`;
+    }
+
+    card.innerHTML = `
+            <div class="dealer-card-top">
+                <span class="dealer-card-icon">${CAT_ICONS[v.vehicleType] || "🚚"}</span>
+                <span class="dealer-card-price${!v.locked && !v.canAfford ? " cant-afford" : ""}">${fmt(v.price)}</span>
+            </div>
+            <div class="dealer-card-name">${v.label}</div>
+            <div class="dealer-card-desc">${v.description || ""}</div>
+            <div class="dealer-card-meta">
+                <span class="dealer-badge dealer-badge-level">Lv. ${v.minLevel}</span>
+                <span class="dealer-badge dealer-badge-type">${TYPE_LBL[v.vehicleType] || v.vehicleType}</span>
+            </div>
+            ${btnHtml}`;
+
+    const buyBtn = card.querySelector(".buy-btn");
+    if (buyBtn) buyBtn.addEventListener("click", () => showConfirm(card, v));
+    return card;
+  }
+
+  function showConfirm(card, v) {
+    // Bestehende Bestätigung entfernen falls offen
+    card.querySelector(".dealer-confirm")?.remove();
+    const confirm = document.createElement("div");
+    confirm.className = "dealer-confirm";
+    confirm.innerHTML = `
+            <div class="dealer-confirm-title">${v.label}<br>jetzt kaufen?</div>
+            <div class="dealer-confirm-price">${fmt(v.price)}</div>
+            <div class="dealer-confirm-btns">
+                <button class="dealer-confirm-ok">Kaufen</button>
+                <button class="dealer-confirm-cancel">Abbruch</button>
+            </div>`;
+    confirm
+      .querySelector(".dealer-confirm-ok")
+      .addEventListener("click", () => {
+        fetch("https://motortown/dealerBuy", {
+          method: "POST",
+          body: JSON.stringify({ model: v.model }),
+        });
+        closePanel();
+      });
+    confirm
+      .querySelector(".dealer-confirm-cancel")
+      .addEventListener("click", () => confirm.remove());
+    card.appendChild(confirm);
+  }
+
+  window.addEventListener("message", (e) => {
+    if (e.data.action === "dealerOpen") open(e.data);
+    if (e.data.action === "dealerClose") overlay.classList.add("hidden");
+  });
+})();
+
+// ══════════════════════════════════════════════════════
+//  GARAGE PANEL
+// ══════════════════════════════════════════════════════
+(function GaragePanel() {
+  const VEH_ICONS = {
+    phantom: "🚛",
+    phantom2: "🚛",
+    hauler: "🚛",
+    hauler2: "🚛",
+    flatbed: "🪵",
+    flatbed2: "🪵",
+    dump: "⛏️",
+    tipper: "⛏️",
+    tipper2: "⛏️",
+    tanker: "⛽",
+    tanker2: "⛽",
+    trash: "🗑️",
+    trash2: "🗑️",
+    mule4: "❄️",
+    mule5: "❄️",
+  };
+  const VEH_LABELS = {
+    phantom: "Jobuilt Phantom",
+    phantom2: "Phantom Custom",
+    hauler: "Jobuilt Hauler",
+    hauler2: "Hauler Custom",
+    flatbed: "MTL Flatbed",
+    flatbed2: "Flatbed XL",
+    dump: "Jobuilt S-95",
+    tipper: "HVY Tipper",
+    tipper2: "Tipper SX",
+    tanker: "MTL Tanker",
+    tanker2: "Tanker LNG",
+    trash: "Trashmaster",
+    trash2: "Trashmaster XL",
+    mule4: "Mule (Kühlung)",
+    mule5: "Mule LWB",
+  };
+
+  let currentZone = "";
+  const overlay = document.getElementById("garage-overlay");
+  const list = document.getElementById("garage-list");
+  document.getElementById("garage-close").addEventListener("click", closePanel);
+
+  function closePanel() {
+    overlay.classList.add("hidden");
+    fetch("https://motortown/garageClose", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  function open(data) {
+    currentZone = data.zoneName || "";
+    list.innerHTML = "";
+
+    if (!data.vehicles || data.vehicles.length === 0) {
+      list.innerHTML =
+        '<div class="garage-empty">Keine Fahrzeuge vorhanden.<br>Kaufe beim Händler dein erstes Fahrzeug.</div>';
+      overlay.classList.remove("hidden");
+      return;
+    }
+
+    for (const v of data.vehicles) list.appendChild(buildRow(v));
+    overlay.classList.remove("hidden");
+  }
+
+  function buildRow(v) {
+    const row = document.createElement("div");
+    row.className = "garage-row";
+    const fuel = Math.round(v.fuel || 0);
+    const fuelCls = fuel > 60 ? "high" : fuel > 25 ? "mid" : "low";
+    const km = v.mileage ? (v.mileage / 1000).toFixed(1) : "0.0";
+    const upgCnt = Object.keys(v.upgrades || {}).length;
+    const icon = VEH_ICONS[v.model] || "🚚";
+    const label = VEH_LABELS[v.model] || v.model;
+    const statusHtml = v.stored
+      ? '<span class="garage-status-pill stored">🅿 Garage</span>'
+      : '<span class="garage-status-pill out">🚛 Unterwegs</span>';
+
+    row.innerHTML = `
+            <div class="garage-row-top">
+                <div class="garage-row-icon">${icon}</div>
+                <div class="garage-row-info">
+                    <div class="garage-row-name">${label}</div>
+                    <div class="garage-row-plate">${v.plate}</div>
+                </div>
+                ${statusHtml}
+            </div>
+            <div class="garage-row-stats">
+                <div class="garage-stat-item">
+                    <div class="garage-stat-label">Kraftstoff</div>
+                    <div class="garage-stat-val">${fuel}%</div>
+                </div>
+                <div class="garage-fuel-wrap">
+                    <div class="garage-stat-label">Füllstand</div>
+                    <div class="garage-fuel-bar">
+                        <div class="garage-fuel-fill ${fuelCls}" style="width:${fuel}%"></div>
+                    </div>
+                </div>
+                <div class="garage-stat-item">
+                    <div class="garage-stat-label">Kilometer</div>
+                    <div class="garage-stat-val">${km} km</div>
+                </div>
+                <div class="garage-stat-item">
+                    <div class="garage-stat-label">Upgrades</div>
+                    <div class="garage-stat-val">${upgCnt}</div>
+                </div>
+            </div>
+            <div class="garage-row-footer">
+                <button class="garage-retrieve-btn" ${v.stored ? "" : "disabled"}>
+                    ${v.stored ? "Holen" : "Unterwegs"}
+                </button>
+            </div>`;
+
+    const btn = row.querySelector(".garage-retrieve-btn");
+    if (v.stored) {
+      btn.addEventListener("click", () => {
+        fetch("https://motortown/garageRetrieve", {
+          method: "POST",
+          body: JSON.stringify({ vehicleId: v.id, zoneName: currentZone }),
+        });
+        closePanel();
+      });
+    }
+    return row;
+  }
+
+  window.addEventListener("message", (e) => {
+    if (e.data.action === "garageOpen") open(e.data);
+    if (e.data.action === "garageClose") overlay.classList.add("hidden");
+  });
+})();
+
+// ══════════════════════════════════════════════════════
+//  UPGRADE PANEL
+// ══════════════════════════════════════════════════════
+(function UpgradePanel() {
+  const UP_ICONS = {
+    motor: "⚡",
+    getriebe: "⚙️",
+    federung: "🔩",
+    bremsen: "🛑",
+    diffsperre: "🔄",
+    turbo: "💨",
+  };
+  // Feste Reihenfolge für konsistente Darstellung
+  const UP_ORDER = [
+    "motor",
+    "turbo",
+    "getriebe",
+    "federung",
+    "bremsen",
+    "diffsperre",
+  ];
+  const fmt = (n) => Number(n).toLocaleString("de-DE") + " $";
+  let state = null;
+
+  const panel = document.getElementById("upgrade-panel");
+  const plateEl = document.getElementById("up-plate");
+  const balEl = document.getElementById("up-balance");
+  const list = document.getElementById("up-list");
+  document
+    .getElementById("upgrade-close")
+    .addEventListener("click", closePanel);
+
+  function closePanel() {
+    panel.classList.add("hidden");
+    fetch("https://motortown/upgradeClose", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  function open(data) {
+    state = data;
+    plateEl.textContent = data.plate || "";
+    balEl.textContent = fmt(data.money || 0);
+    renderList(data);
+    panel.classList.remove("hidden");
+  }
+
+  function renderList(data) {
+    list.innerHTML = "";
+    // Sortieren nach fixer Reihenfolge, Rest alphabetisch dahinter
+    const sorted = [...data.upgrades].sort((a, b) => {
+      const ia = UP_ORDER.indexOf(a.key);
+      const ib = UP_ORDER.indexOf(b.key);
+      if (ia === -1 && ib === -1) return a.key.localeCompare(b.key);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+    for (const upg of sorted) list.appendChild(buildRow(upg, data.money));
+  }
+
+  function buildRow(upg, money) {
+    const row = document.createElement("div");
+    row.className = "up-row";
+    const icon = UP_ICONS[upg.key] || "🔧";
+    const isMax = upg.currentLevel >= upg.maxLevel;
+
+    // Level-Punkte
+    const dots = Array.from({ length: upg.maxLevel }, (_, i) => {
+      const cls = i < upg.currentLevel ? (isMax ? "done" : "filled") : "empty";
+      return `<div class="up-dot ${cls}"></div>`;
+    }).join("");
+
+    let costHtml, btnHtml;
+    if (isMax) {
+      costHtml = `<span class="up-cost maxed">✅ Max. erreicht</span>`;
+      btnHtml = `<button class="up-buy-btn" disabled>Max</button>`;
+    } else {
+      const canAfford = money >= upg.cost;
+      costHtml = `<span class="up-cost${canAfford ? "" : " cant-afford"}">${fmt(upg.cost)}</span>`;
+      btnHtml = `<button class="up-buy-btn" ${canAfford ? "" : "disabled"}
+                            data-key="${upg.key}" data-level="${upg.nextLevel}">
+                            Stufe ${upg.nextLevel}
+                        </button>`;
+    }
+
+    row.innerHTML = `
+            <div class="up-row-top">
+                <div class="up-row-icon">${icon}</div>
+                <div class="up-row-info">
+                    <div class="up-row-name">${upg.label}</div>
+                    <div class="up-row-desc">${upg.description || ""}</div>
+                </div>
+                <div class="up-dots">${dots}</div>
+            </div>
+            <div class="up-row-bottom">
+                ${costHtml}
+                ${btnHtml}
+            </div>`;
+
+    const btn = row.querySelector(".up-buy-btn:not([disabled])");
+    if (btn) {
+      btn.addEventListener("click", () => {
+        fetch("https://motortown/upgradeBuy", {
+          method: "POST",
+          body: JSON.stringify({ upgradeKey: upg.key, level: upg.nextLevel }),
+        });
+        // Button sofort deaktivieren – verhindert Doppelklick
+        btn.disabled = true;
+        btn.textContent = "...";
+      });
+    }
+    return row;
+  }
+
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (d.action === "upgradeOpen") open(d);
+    if (d.action === "upgradeClose") panel.classList.add("hidden");
+    if (
+      d.action === "upgradeRefresh" &&
+      state &&
+      !panel.classList.contains("hidden")
+    ) {
+      state.upgrades = d.upgrades;
+      state.money = d.money;
+      balEl.textContent = fmt(d.money);
+      renderList(state);
+    }
+  });
+})();

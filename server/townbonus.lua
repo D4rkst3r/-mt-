@@ -15,11 +15,11 @@ local TownBonusModule    = {}
 local bonusTable         = {}
 
 -- Konstanten aus Config
-local BONUS_PER_DELIVERY = Config.BonusPerDelivery  or 0.05
-local BONUS_DECAY_RATE   = Config.BonusDecayRate    or 0.02
-local BONUS_MIN          = Config.BonusMin          or 1.0
-local BONUS_MAX          = Config.BonusMax          or 2.0
-local DECAY_INTERVAL_MS  = Config.BonusDecayMs      or (10 * 60 * 1000)
+local BONUS_PER_DELIVERY = Config.BonusPerDelivery or 0.05
+local BONUS_DECAY_RATE   = Config.BonusDecayRate or 0.02
+local BONUS_MIN          = Config.BonusMin or 1.0
+local BONUS_MAX          = Config.BonusMax or 2.0
+local DECAY_INTERVAL_MS  = Config.BonusDecayMs or (10 * 60 * 1000)
 
 -- ────────────────────────────────────────────────────────────
 --  DB: Laden & Speichern
@@ -194,7 +194,9 @@ function TownBonusModule.GetBonusForDelivery(deliveryZoneKey)
     local coords = deliveryZone.coords
     if not coords and deliveryZone.type == "poly" and deliveryZone.points then
         local cx, cy = 0, 0
-        for _, p in ipairs(deliveryZone.points) do cx = cx + p.x; cy = cy + p.y end
+        for _, p in ipairs(deliveryZone.points) do
+            cx = cx + p.x; cy = cy + p.y
+        end
         local n = #deliveryZone.points
         coords = { x = cx / n, y = cy / n }
     end
@@ -206,7 +208,9 @@ function TownBonusModule.GetBonusForDelivery(deliveryZoneKey)
     for _, zoneData in pairs(Config.Zones) do
         if zoneData.bonusZone and zoneData.zoneKey and zoneData.points then
             local cx, cy = 0, 0
-            for _, p in ipairs(zoneData.points) do cx = cx + p.x; cy = cy + p.y end
+            for _, p in ipairs(zoneData.points) do
+                cx = cx + p.x; cy = cy + p.y
+            end
             local n    = #zoneData.points
             local dist = Utils.Distance2D(coords, { x = cx / n, y = cy / n })
             if dist < nearestDist then
@@ -231,7 +235,12 @@ function TownBonusModule.Init()
         end
 
         -- Decay-Loop starten
-        SetInterval(RunDecayTick, DECAY_INTERVAL_MS)
+        CreateThread(function()
+            while true do
+                Wait(DECAY_INTERVAL_MS)
+                RunDecayTick()
+            end
+        end)
 
         -- Neuen Spielern sofort Bonus-Table schicken
         AddEventHandler("playerJoining", function()

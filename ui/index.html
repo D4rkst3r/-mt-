@@ -338,4 +338,51 @@
         <div class="fp-list" id="fp-list"></div>
     </div>
 
+    <!-- ═══════════════════════════════════════════
+         DEALER PANEL
+    ════════════════════════════════════════════ -->
+    <div id="dealer-overlay" class="veh-overlay hidden">
+        <div id="dealer-panel">
+            <div class="veh-header">
+                <div class="veh-title-wrap">
+                    <span class="veh-title">🚛 Fahrzeughändler</span>
+                </div>
+                <div class="veh-header-balance" id="dealer-balance"></div>
+                <button class="veh-close" id="dealer-close">✕</button>
+            </div>
+            <div class="dealer-body">
+                <nav class="dealer-nav" id="dealer-nav"></nav>
+                <div class="dealer-grid" id="dealer-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         GARAGE PANEL
+    ════════════════════════════════════════════ -->
+    <div id="garage-overlay" class="veh-overlay hidden">
+        <div id="garage-panel">
+            <div class="veh-header">
+                <span class="veh-title">🅿️ Garage</span>
+                <button class="veh-close" id="garage-close">✕</button>
+            </div>
+            <div class="garage-list" id="garage-list"></div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         UPGRADE PANEL  (slide-in von rechts)
+    ════════════════════════════════════════════ -->
+    <div id="upgrade-panel" class="hidden">
+        <div class="veh-header">
+            <div>
+                <div class="veh-title">🔧 Werkstatt</div>
+                <div class="up-plate" id="up-plate"></div>
+            </div>
+            <div class="veh-header-balance" id="up-balance"></div>
+            <button class="veh-close" id="upgrade-close">✕</button>
+        </div>
+        <div class="up-list" id="up-list"></div>
+    </div>
+
     <script src="script.js"></script>

@@ -17,12 +17,7 @@ PlayerModule.cache = {}
 -- ────────────────────────────────────────────────────────────
 
 local function GetIdentifier(source)
-    for _, v in ipairs(GetPlayerIdentifiers(source)) do
-        if v:sub(1, 8) == "license:" then
-            return v
-        end
-    end
-    return nil
+    return Utils.GetIdentifier(source)
 end
 
 local function DefaultPlayerData(identifier, name)
@@ -202,11 +197,14 @@ function PlayerModule.Init()
     end)
 
     -- Periodisches Speichern alle 5 Minuten (crash-safety)
-    SetInterval(function()
-        for src, _ in pairs(PlayerModule.cache) do
-            SavePlayer(src)
+    CreateThread(function()
+        while true do
+            Wait(5 * 60 * 1000)
+            for src, _ in pairs(PlayerModule.cache) do
+                SavePlayer(src)
+            end
         end
-    end, 5 * 60 * 1000)
+    end)
 
     -- Exports für andere Server-Module
     exports("GetPlayerData", PlayerModule.GetData)

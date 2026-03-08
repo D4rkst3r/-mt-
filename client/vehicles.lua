@@ -1,7 +1,12 @@
 -- ============================================================
 --  client/vehicles.lua
 --  Zuständig für: Fahrzeug spawnen, HandlingFields anwenden,
---  Dealer-UI, Garage-UI, Upgrade-UI, Schadensystem.
+--  Dealer-NUI, Garage-NUI, Upgrade-NUI, Schadensystem.
+--
+--  NUI-Panels ersetzen alle ox_lib Context-Menus:
+--    dealerOpen  / dealerClose  / dealerBuy
+--    garageOpen  / garageClose  / garageRetrieve
+--    upgradeOpen / upgradeClose / upgradeRefresh / upgradeBuy
 -- ============================================================
 
 local VehicleModule     = {}
@@ -14,17 +19,17 @@ local pendingStorePlate = nil -- Plate des Fahrzeugs das gerade eingelagert wird
 local lastHealth        = 1000.0
 local damageThread      = nil
 
+-- Tracking ob Upgrade-Panel gerade offen ist (für Refresh nach Kauf)
+local upgradePanel      = false
+
 -- ────────────────────────────────────────────────────────────
 --  HandlingFields anwenden
 -- ────────────────────────────────────────────────────────────
 
--- Wendet alle Upgrade-HandlingFields auf ein Fahrzeug an.
--- Stapelt Upgrades in der Reihenfolge motor → getriebe → ...
 local function ApplyUpgrades(vehicle, upgrades)
     if not vehicle or not upgrades then return end
 
-    -- Alle Felder die durch irgendein Upgrade verändert werden könnten zurücksetzen,
-    -- bevor neue Werte gesetzt werden. Verhindert Upgrade-Stacking beim Wechsel.
+    -- Alle Felder zuerst zurücksetzen (verhindert Upgrade-Stacking)
     for _, upgradeCfg in pairs(Config.Upgrades) do
         for _, levelCfg in ipairs(upgradeCfg.levels) do
             for field, _ in pairs(levelCfg.fields) do
@@ -36,8 +41,7 @@ local function ApplyUpgrades(vehicle, upgrades)
     for upgradeKey, level in pairs(upgrades) do
         local upgradeCfg = Config.Upgrades[upgradeKey]
         if upgradeCfg and upgradeCfg.levels[level] then
-            local fields = upgradeCfg.levels[level].fields
-            for field, value in pairs(fields) do
+            for field, value in pairs(upgradeCfg.levels[level].fields) do
                 SetVehicleHandlingFloat(vehicle, "CHandlingData", field, value)
             end
         end
@@ -57,7 +61,6 @@ local function SpawnVehicle(data, spawnCoords, heading)
             return
         end
 
-        -- Model laden und warten bis es bereit ist
         lib.requestModel(model, 10000)
         while not HasModelLoaded(model) do Wait(50) end
 
@@ -66,84 +69,55 @@ local function SpawnVehicle(data, spawnCoords, heading)
             heading or 0.0, true, false
         )
 
-        -- Warten bis Fahrzeug existiert
         while not DoesEntityExist(vehicle) do Wait(50) end
 
-        -- Mission Entity damit GTA es nicht despawnt
         SetEntityAsMissionEntity(vehicle, true, true)
-
-        -- Verhindert Hotwire/Starten-Bug
         SetVehicleNeedsToBeHotwired(vehicle, false)
-
-        -- Vollständig repariert spawnen (verhindert "kaputt & nicht startbar" Bug)
         SetVehicleFixed(vehicle)
         SetVehicleDeformationFixed(vehicle)
         SetVehicleDirtLevel(vehicle, 0.0)
-
-        -- Kennzeichen setzen
         SetVehicleNumberPlateText(vehicle, data.plate)
 
-        -- Upgrades anwenden
         if data.upgrades and next(data.upgrades) then
             ApplyUpgrades(vehicle, data.upgrades)
         end
 
-        -- Spieler ins Fahrzeug warpen
         local ped = PlayerPedId()
         TaskWarpPedIntoVehicle(ped, vehicle, -1)
 
-        -- Warten bis Spieler wirklich drin sitzt
         local timeout = 0
         while GetVehiclePedIsIn(ped, false) ~= vehicle and timeout < 50 do
-            Wait(100)
-            timeout = timeout + 1
+            Wait(100); timeout = timeout + 1
         end
 
-        -- Motor an (NACH dem Einsteigen – verhindert dass GTA den Motor wieder abwürgt)
+        -- Motor nach Einsteigen anschalten (verhindert Abwürgen)
         SetVehicleEngineOn(vehicle, true, true, false)
 
-        -- Wenn Warp fehlgeschlagen: Wegpunkt setzen damit Spieler Fahrzeug findet
         if GetVehiclePedIsIn(ped, false) ~= vehicle then
             local vCoords = GetEntityCoords(vehicle)
             SetNewWaypoint(vCoords.x, vCoords.y)
-            lib.notify({
-                title       = "Fahrzeug gespawnt",
-                description = "Wegpunkt zu deinem Fahrzeug gesetzt.",
-                type        = "inform",
-            })
+            lib.notify({ title = "Fahrzeug gespawnt", description = "Wegpunkt gesetzt.", type = "inform" })
         end
 
-        -- Tankstand setzen nachdem Spieler sitzt
-        local fuelLevel = data.fuel or 100.0
-        SetVehicleFuelLevel(vehicle, fuelLevel)
-
+        SetVehicleFuelLevel(vehicle, data.fuel or 100.0)
         SetModelAsNoLongerNeeded(model)
 
-        spawnedVehicle = {
-            entity   = vehicle,
-            plate    = data.plate,
-            id       = data.id,
-            upgrades = data.upgrades or {},
-        }
+        spawnedVehicle = { entity = vehicle, plate = data.plate, id = data.id, upgrades = data.upgrades or {} }
 
-        -- Kilometerzähler auf DB-Stand setzen
-        if _HudModule then
-            _HudModule.SetOdometerBase(data.mileage or 0)
-        end
+        if _HudModule then _HudModule.SetOdometerBase(data.mileage or 0) end
 
-        -- Schadensüberwachung starten
         VehicleModule.StartDamageThread()
 
         lib.notify({
-            title       = "Fahrzeug geholt",
-            description = ("%s – Kennzeichen: %s"):format(data.model, data.plate),
+            title       = "🚛 Fahrzeug geholt",
+            description = ("%s – %s"):format(data.model, data.plate),
             type        = "success",
         })
     end)
 end
 
 -- ────────────────────────────────────────────────────────────
---  Schadensüberwachung (läuft im Hintergrund)
+--  Schadensüberwachung
 -- ────────────────────────────────────────────────────────────
 
 function VehicleModule.StartDamageThread()
@@ -152,15 +126,11 @@ function VehicleModule.StartDamageThread()
     damageThread = CreateThread(function()
         while true do
             Wait(2000)
-
-            -- Lokal sichern um Race Condition zu vermeiden
             local sv = spawnedVehicle
             if not sv or not DoesEntityExist(sv.entity) then break end
 
-            local vehicle = sv.entity
-            local health  = GetVehicleBodyHealth(vehicle)
+            local health = GetVehicleBodyHealth(sv.entity)
 
-            -- Spürbarer Schaden → ans HUD-Modul melden
             if math.abs(health - lastHealth) > 5 then
                 lastHealth = health
                 TriggerEvent(MT.VEHICLE_DAMAGE_SYNC, {
@@ -170,13 +140,12 @@ function VehicleModule.StartDamageThread()
                 })
             end
 
-            -- Fahrzeug wurde zerstört
             if health <= 0 then
                 lib.notify({
-                    title       = "⚠️ Fahrzeug beschädigt",
-                    description = "Fahre zur Werkstatt um es reparieren zu lassen.",
-                    type        = "warning",
-                    duration    = 8000,
+                    title = "⚠️ Fahrzeug beschädigt",
+                    description = "Fahre zur Werkstatt.",
+                    type = "warning",
+                    duration = 8000,
                 })
                 break
             end
@@ -186,7 +155,7 @@ function VehicleModule.StartDamageThread()
 end
 
 -- ────────────────────────────────────────────────────────────
---  Dealer Menü
+--  Dealer NUI
 -- ────────────────────────────────────────────────────────────
 
 local function OpenDealerMenu()
@@ -194,140 +163,74 @@ local function OpenDealerMenu()
 
     local level = exports["motortown"]:GetLevel()
     local money = exports["motortown"]:GetMoney()
+    local list  = {}
 
-    -- Fahrzeuge nach Kategorie gruppieren
-    local categories = {}
     for model, cfg in pairs(Config.Vehicles) do
-        local cat = cfg.category or cfg.vehicleType
-        if not categories[cat] then categories[cat] = {} end
-        table.insert(categories[cat], { model = model, cfg = cfg })
-    end
-
-    -- Kategorie-Auswahl zuerst
-    local catOptions = {}
-    local catLabels  = {
-        semi         = "🚛 Sattelzüge",
-        flatbed      = "🪵 Tieflader",
-        kipper       = "⛏️ Kipper",
-        tanker       = "⛽ Tanker",
-        garbage      = "🗑️ Müllfahrzeuge",
-        refrigerated = "❄️ Kühlfahrzeuge",
-    }
-
-    for cat, vehicles in pairs(categories) do
-        -- Sortieren nach Preis
-        table.sort(vehicles, function(a, b) return a.cfg.price < b.cfg.price end)
-
-        local vehicleOptions = {}
-        for _, v in ipairs(vehicles) do
-            local locked    = level < (v.cfg.minLevel or 1)
-            local canAfford = money >= v.cfg.price
-
-            table.insert(vehicleOptions, {
-                title       = locked
-                    and ("🔒 %s"):format(v.cfg.label)
-                    or v.cfg.label,
-                description = ("%s\nPreis: %s | Level: %d | Typ: %s"):format(
-                    v.cfg.description or "",
-                    Utils.FormatMoney(v.cfg.price),
-                    v.cfg.minLevel or 1,
-                    v.cfg.vehicleType
-                ),
-                disabled    = locked,
-                onSelect    = locked and nil or function()
-                    -- Kaufbestätigung
-                    local confirmed = lib.alertDialog({
-                        header   = ("Kaufen: %s"):format(v.cfg.label),
-                        content  = ("Preis: **%s**\nGeld: **%s**"):format(
-                            Utils.FormatMoney(v.cfg.price),
-                            Utils.FormatMoney(money)
-                        ),
-                        centered = true,
-                        cancel   = true,
-                    })
-                    if confirmed == "confirm" then
-                        TriggerServerEvent("mt:vehicle:buy", { model = v.model })
-                    end
-                end,
-            })
-        end
-
-        table.insert(catOptions, {
-            title    = catLabels[cat] or cat,
-            arrow    = true,
-            onSelect = function()
-                lib.registerContext({
-                    id      = "mt_dealer_cat_" .. cat,
-                    title   = catLabels[cat] or cat,
-                    menu    = "mt_dealer",
-                    options = vehicleOptions,
-                })
-                lib.showContext("mt_dealer_cat_" .. cat)
-            end,
+        table.insert(list, {
+            model       = model,
+            label       = cfg.label,
+            price       = cfg.price,
+            minLevel    = cfg.minLevel or 1,
+            vehicleType = cfg.vehicleType,
+            category    = cfg.category or cfg.vehicleType,
+            description = cfg.description or "",
+            locked      = level < (cfg.minLevel or 1),
+            canAfford   = money >= cfg.price,
         })
     end
+    table.sort(list, function(a, b) return a.price < b.price end)
 
-    lib.registerContext({
-        id      = "mt_dealer",
-        title   = "🚛 Fahrzeughändler",
-        options = catOptions,
-    })
-    lib.showContext("mt_dealer")
+    SendNUIMessage({ action = "dealerOpen", money = money, level = level, vehicles = list })
+    SetNuiFocus(true, true)
 end
 
 -- ────────────────────────────────────────────────────────────
---  Garage Menü
+--  Garage NUI
 -- ────────────────────────────────────────────────────────────
 
-local function OpenGarageMenu(zoneName, zoneData)
+local function OpenGarageMenu(zoneName)
+    VehicleModule._lastGarageZone = zoneName
     TriggerServerEvent("mt:vehicle:garageOpen")
+    -- OnGarageList empfängt die Server-Antwort und öffnet das Panel
 end
 
-local function ShowGarageList(vehicles, zoneName)
+local function ShowGaragePanel(vehicles, zoneName)
     if not vehicles or #vehicles == 0 then
-        lib.notify({
-            title       = "Garage leer",
-            description = "Du besitzt noch keine Fahrzeuge.",
-            type        = "inform",
-        })
+        lib.notify({ title = "Garage leer", description = "Du besitzt noch keine Fahrzeuge.", type = "inform" })
         return
     end
-
-    local options = {}
-    for _, v in ipairs(vehicles) do
-        local statusIcon = v.stored and "🅿️" or "🚛"
-        local upgCount   = 0
-        for _ in pairs(v.upgrades) do upgCount = upgCount + 1 end
-
-        table.insert(options, {
-            title       = ("%s %s"):format(statusIcon, v.model),
-            description = ("Kennzeichen: %s | Upgrades: %d | Kraftstoff: %d%%"):format(
-                v.plate, upgCount, v.fuel
-            ),
-            disabled    = not v.stored,
-            onSelect    = function()
-                -- Spawn-Koordinaten aus Zone holen
-                local zone = Config.Zones[zoneName]
-                local spawnCoords = zone and zone.coords or GetEntityCoords(PlayerPedId())
-                TriggerServerEvent("mt:vehicle:retrieve", {
-                    vehicleId = v.id,
-                    spawnZone = zoneName,
-                })
-            end,
-        })
-    end
-
-    lib.registerContext({
-        id      = "mt_garage",
-        title   = "🅿️ Garage",
-        options = options,
-    })
-    lib.showContext("mt_garage")
+    SendNUIMessage({ action = "garageOpen", zoneName = zoneName or "", vehicles = vehicles })
+    SetNuiFocus(true, true)
 end
 
 -- ────────────────────────────────────────────────────────────
---  Upgrade Menü
+--  Upgrade NUI
 -- ────────────────────────────────────────────────────────────
+
+local function BuildUpgradeList(currentUpgrades, money)
+    local result = {}
+    for key, cfg in pairs(Config.Upgrades) do
+        local curLevel  = currentUpgrades[key] or 0
+        local maxLevel  = #cfg.levels
+        local nextLevel = curLevel + 1
+        local cost      = 0
+        if nextLevel <= maxLevel then
+            local prevPrice = curLevel > 0 and cfg.levels[curLevel].price or 0
+            cost = cfg.levels[nextLevel].price - prevPrice
+        end
+        table.insert(result, {
+            key          = key,
+            label        = cfg.label,
+            description  = cfg.description or "",
+            currentLevel = curLevel,
+            maxLevel     = maxLevel,
+            nextLevel    = nextLevel,
+            cost         = cost,
+            canAfford    = money >= cost,
+        })
+    end
+    return result
+end
 
 local function OpenUpgradeMenu()
     if not spawnedVehicle then
@@ -338,109 +241,133 @@ local function OpenUpgradeMenu()
         })
         return
     end
-
     local money    = exports["motortown"]:GetMoney()
-    local upgrades = spawnedVehicle.upgrades
-    local options  = {}
+    local upgrades = BuildUpgradeList(spawnedVehicle.upgrades, money)
 
-    for upgradeKey, upgradeCfg in pairs(Config.Upgrades) do
-        local currentLevel = upgrades[upgradeKey] or 0
-        local maxLevel     = #upgradeCfg.levels
-        local nextLevel    = currentLevel + 1
-
-        local title        = ("%s %s"):format(upgradeCfg.icon or "🔧", upgradeCfg.label)
-        local desc
-
-        if currentLevel >= maxLevel then
-            desc = "✅ Vollständig aufgerüstet"
-            table.insert(options, {
-                title       = title,
-                description = desc,
-                disabled    = true,
-            })
-        else
-            local nextCfg   = upgradeCfg.levels[nextLevel]
-            local prevPrice = currentLevel > 0 and upgradeCfg.levels[currentLevel].price or 0
-            local cost      = nextCfg.price - prevPrice
-            local canAfford = money >= cost
-
-            desc            = ("%s\nStufe %d → %d | Kosten: %s%s"):format(
-                upgradeCfg.description,
-                currentLevel, nextLevel,
-                Utils.FormatMoney(cost),
-                not canAfford and " ❌" or ""
-            )
-
-            table.insert(options, {
-                title       = title,
-                description = desc,
-                disabled    = not canAfford,
-                onSelect    = function()
-                    TriggerServerEvent(MT.VEHICLE_UPGRADE_BUY, {
-                        vehicleId  = spawnedVehicle.id,
-                        upgradeKey = upgradeKey,
-                        level      = nextLevel,
-                    })
-                end,
-            })
-        end
-    end
-
-    lib.registerContext({
-        id      = "mt_upgrades",
-        title   = ("🔧 Upgrades – %s"):format(spawnedVehicle.plate),
-        options = options,
+    SendNUIMessage({
+        action    = "upgradeOpen",
+        vehicleId = spawnedVehicle.id,
+        plate     = spawnedVehicle.plate,
+        money     = money,
+        upgrades  = upgrades,
     })
-    lib.showContext("mt_upgrades")
+    SetNuiFocus(true, true)
+    upgradePanel = true
 end
 
 -- ────────────────────────────────────────────────────────────
---  Reparatur
+--  Reparatur  (ox_lib progressBar bleibt – kein Menü-Flow)
 -- ────────────────────────────────────────────────────────────
 
 local function RepairVehicle()
     local ped     = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
     if not vehicle or vehicle == 0 then
-        -- Prüfe ob Fahrzeug in der Nähe (Spieler ist ausgestiegen)
-        vehicle = GetClosestVehicle(
-            GetEntityCoords(ped).x, GetEntityCoords(ped).y,
-            GetEntityCoords(ped).z, 5.0, 0, 70
-        )
+        vehicle = GetClosestVehicle(GetEntityCoords(ped).x, GetEntityCoords(ped).y, GetEntityCoords(ped).z, 5.0, 0, 70)
     end
     if not vehicle or vehicle == 0 then
-        lib.notify({ title = "Kein Fahrzeug in der Nähe", type = "error" })
-        return
+        lib.notify({ title = "Kein Fahrzeug in der Nähe", type = "error" }); return
     end
 
     local health    = GetVehicleBodyHealth(vehicle)
     local damage    = Utils.Round(1.0 - (health / 1000.0), 3)
-    local cost      = math.max(
-        Config.RepairMinCost,
-        math.floor(damage * 1000 * Config.RepairCostPerDamage)
-    )
+    local cost      = math.max(Config.RepairMinCost, math.floor(damage * 1000 * Config.RepairCostPerDamage))
 
-    -- Vorschau der Kosten
     local confirmed = lib.alertDialog({
-        header   = "Fahrzeug reparieren",
-        content  = ("Schaden: **%.0f%%**\nKosten: **%s**"):format(
-            damage * 100, Utils.FormatMoney(cost)),
+        header = "🔧 Fahrzeug reparieren",
+        content = ("Schaden: **%.0f%%**\nKosten: **%s**"):format(damage * 100, Utils.FormatMoney(cost)),
         centered = true,
-        cancel   = true,
+        cancel = true,
     })
     if confirmed ~= "confirm" then return end
 
     local success = lib.progressBar({
-        duration     = Config.RepairProgressMs,
-        label        = "Fahrzeug wird repariert...",
+        duration = Config.RepairProgressMs,
+        label = "Fahrzeug wird repariert...",
         useWhileDead = false,
-        canCancel    = false,
-        disable      = { move = true, car = true, combat = true },
-        anim         = { dict = "mini@repair", clip = "fixing_a_player" },
+        canCancel = false,
+        disable = { move = true, car = true, combat = true },
+        anim    = { dict = "mini@repair", clip = "fixing_a_player" },
     })
     if not success then return end
 
     TriggerServerEvent("mt:vehicle:repairPay", { damage = damage })
+end
+
+-- ────────────────────────────────────────────────────────────
+--  Fahrzeug einlagern
+-- ────────────────────────────────────────────────────────────
+
+local STORE_RADIUS = 20.0
+
+local function GetNearbyOwnVehicles()
+    local found     = {}
+    local pedCoords = GetEntityCoords(PlayerPedId())
+
+    if spawnedVehicle and DoesEntityExist(spawnedVehicle.entity) then
+        local dist = #(pedCoords - GetEntityCoords(spawnedVehicle.entity))
+        if dist <= STORE_RADIUS then
+            table.insert(found,
+                { entity = spawnedVehicle.entity, plate = spawnedVehicle.plate, id = spawnedVehicle.id, dist = Utils
+                .Round(dist, 1) })
+        end
+    else
+        local ped     = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if not vehicle or vehicle == 0 then
+            vehicle = GetClosestVehicle(pedCoords.x, pedCoords.y, pedCoords.z, STORE_RADIUS, 0, 70)
+        end
+        if vehicle and vehicle ~= 0 then
+            local dist = #(pedCoords - GetEntityCoords(vehicle))
+            if dist <= STORE_RADIUS then
+                table.insert(found,
+                    { entity = vehicle, plate = GetVehicleNumberPlateText(vehicle):gsub("%s+", ""), id = nil, dist =
+                    Utils.Round(dist, 1) })
+            end
+        end
+    end
+    return found
+end
+
+local function NormalizePlate(plate)
+    return plate and plate:gsub("%s+", ""):upper() or ""
+end
+
+local function DoStoreVehicle(vehicleData)
+    pendingStorePlate = vehicleData.plate
+    local fuel        = GetVehicleFuelLevel(vehicleData.entity)
+    local mileage     = _HudModule and _HudModule.GetOdometer() or 0
+    TriggerServerEvent(MT.VEHICLE_STORE, {
+        plate     = NormalizePlate(vehicleData.plate),
+        vehicleId = vehicleData.id,
+        fuel      = Utils.Round(fuel, 0),
+        mileage   = Utils.Round(mileage, 1),
+    })
+end
+
+local function StoreCurrentVehicle(zoneName)
+    local nearby = GetNearbyOwnVehicles()
+
+    if #nearby == 0 then
+        lib.notify({ title = "Kein Fahrzeug in der Nähe", description = ("Max. %dm Abstand."):format(STORE_RADIUS), type =
+        "error" })
+        return
+    end
+    if #nearby == 1 then
+        DoStoreVehicle(nearby[1]); return
+    end
+
+    -- Edge-Case: mehrere Fahrzeuge → schnelle ox_lib Auswahl
+    local options = {}
+    for _, v in ipairs(nearby) do
+        table.insert(options, {
+            title       = ("🚛 %s"):format(v.plate),
+            description = ("%.1f m entfernt"):format(v.dist),
+            onSelect    = function() DoStoreVehicle(v) end,
+        })
+    end
+    lib.registerContext({ id = "mt_store_select", title = "Welches Fahrzeug einlagern?", options = options })
+    lib.showContext("mt_store_select")
 end
 
 -- ────────────────────────────────────────────────────────────
@@ -449,42 +376,34 @@ end
 
 local function OnBuyResult(data)
     if not data.success then
-        lib.notify({ title = "Kauf fehlgeschlagen", description = data.error, type = "error" })
-        return
+        lib.notify({ title = "Kauf fehlgeschlagen", description = data.error, type = "error" }); return
     end
     lib.notify({
-        title       = "🚛 Fahrzeug gekauft!",
+        title = "🚛 Fahrzeug gekauft!",
         description = ("%s – Kennzeichen: %s"):format(data.label, data.plate),
-        type        = "success",
-        duration    = 8000,
+        type = "success",
+        duration = 8000,
     })
 end
 
 local function OnGarageList(vehicles)
-    -- Zonename ist beim Aufruf von OpenGarageMenu bekannt,
-    -- hier merken wir ihn in einem Closure
-    ShowGarageList(vehicles, VehicleModule._lastGarageZone or "garage_stadtmitte")
+    ShowGaragePanel(vehicles, VehicleModule._lastGarageZone or "")
 end
 
 local function OnSpawnData(data)
     if not data.success then
-        lib.notify({ title = "Fehler", description = data.error, type = "error" })
-        return
+        lib.notify({ title = "Fehler", description = data.error, type = "error" }); return
     end
 
     local zone = Config.Zones[data.spawnZone]
-    -- Explizite spawnCoords bevorzugen, sonst Fallback auf zone.coords + Offset
     local spawnCoords, heading
+
     if zone and zone.spawnCoords then
         spawnCoords = zone.spawnCoords
         heading     = zone.spawnHeading or 0.0
     elseif zone then
         local base  = zone.coords
-        spawnCoords = vec3(
-            base.x + Config.SpawnOffset.x,
-            base.y + Config.SpawnOffset.y,
-            base.z + Config.SpawnOffset.z
-        )
+        spawnCoords = vec3(base.x + Config.SpawnOffset.x, base.y + Config.SpawnOffset.y, base.z + Config.SpawnOffset.z)
         heading     = 0.0
     else
         spawnCoords = GetEntityCoords(PlayerPedId())
@@ -496,11 +415,9 @@ end
 
 local function OnUpgradeResult(data)
     if not data.success then
-        lib.notify({ title = "Upgrade fehlgeschlagen", description = data.error, type = "error" })
-        return
+        lib.notify({ title = "Upgrade fehlgeschlagen", description = data.error, type = "error" }); return
     end
 
-    -- Upgrade lokal anwenden ohne neu spawnen
     if spawnedVehicle then
         spawnedVehicle.upgrades[data.upgradeKey] = data.level
         ApplyUpgrades(spawnedVehicle.entity, spawnedVehicle.upgrades)
@@ -511,15 +428,20 @@ local function OnUpgradeResult(data)
         description = ("Stufe %d erfolgreich eingebaut."):format(data.level),
         type        = "success",
     })
+
+    -- Upgrade-Panel live refreshen wenn offen
+    if upgradePanel and spawnedVehicle then
+        local money    = exports["motortown"]:GetMoney()
+        local upgrades = BuildUpgradeList(spawnedVehicle.upgrades, money)
+        SendNUIMessage({ action = "upgradeRefresh", upgrades = upgrades, money = money })
+    end
 end
 
 local function OnRepairResult(data)
     if not data.success then
-        lib.notify({ title = "Reparatur fehlgeschlagen", description = data.error, type = "error" })
-        return
+        lib.notify({ title = "Reparatur fehlgeschlagen", description = data.error, type = "error" }); return
     end
 
-    -- Fahrzeug tatsächlich reparieren
     local ped     = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
     if vehicle and vehicle ~= 0 then
@@ -539,11 +461,9 @@ end
 local function OnVehicleStoreResult(data)
     if not data.success then
         pendingStorePlate = nil
-        lib.notify({ title = "Einlagern fehlgeschlagen", description = data.error, type = "error" })
-        return
+        lib.notify({ title = "Einlagern fehlgeschlagen", description = data.error, type = "error" }); return
     end
 
-    -- Fahrzeug löschen (das tatsächlich eingelagerte)
     if spawnedVehicle and DoesEntityExist(spawnedVehicle.entity) then
         local storedPlate = pendingStorePlate or spawnedVehicle.plate
         if spawnedVehicle.plate == storedPlate then
@@ -552,116 +472,54 @@ local function OnVehicleStoreResult(data)
         end
     end
     pendingStorePlate = nil
-
     lib.notify({ title = "🅿️ Fahrzeug eingelagert", type = "success" })
 end
 
 -- ────────────────────────────────────────────────────────────
---  Fahrzeug einlagern (aus Zone-Target)
+--  NUI Callbacks  (NUI → Lua)
 -- ────────────────────────────────────────────────────────────
 
-local STORE_RADIUS = 20.0 -- Meter – Fahrzeug muss in der Nähe des Spielers stehen
+RegisterNUICallback("dealerClose", function(_, cb)
+    SetNuiFocus(false, false); cb({})
+end)
 
--- Gibt alle eigenen MT-Fahrzeuge zurück die innerhalb des Radius stehen
-local function GetNearbyOwnVehicles(garageCoords)
-    local found     = {}
-    -- Abstand immer vom Spieler messen – nicht vom Zonen-Mittelpunkt
-    local pedCoords = GetEntityCoords(PlayerPedId())
-
-    -- Eigenes aktuell getracktetes Fahrzeug
-    if spawnedVehicle and DoesEntityExist(spawnedVehicle.entity) then
-        local vehCoords = GetEntityCoords(spawnedVehicle.entity)
-        local dist      = #(pedCoords - vehCoords)
-        if dist <= STORE_RADIUS then
-            table.insert(found, {
-                entity = spawnedVehicle.entity,
-                plate  = spawnedVehicle.plate,
-                id     = spawnedVehicle.id,
-                dist   = Utils.Round(dist, 1),
-            })
-        end
-    else
-        -- Fallback: spawnedVehicle nicht gesetzt (z.B. nach Resource-Restart)
-        local ped     = PlayerPedId()
-        local vehicle = GetVehiclePedIsIn(ped, false)
-        if not vehicle or vehicle == 0 then
-            -- Spieler sitzt nicht drin → nächstes Fahrzeug in der Nähe suchen
-            vehicle = GetClosestVehicle(pedCoords.x, pedCoords.y, pedCoords.z, STORE_RADIUS, 0, 70)
-        end
-        if vehicle and vehicle ~= 0 then
-            local vehCoords = GetEntityCoords(vehicle)
-            local dist      = #(pedCoords - vehCoords)
-            if dist <= STORE_RADIUS then
-                local plate = GetVehicleNumberPlateText(vehicle):gsub("%s+", "")
-                table.insert(found, {
-                    entity = vehicle,
-                    plate  = plate,
-                    id     = nil,
-                    dist   = Utils.Round(dist, 1),
-                })
-            end
-        end
+RegisterNUICallback("dealerBuy", function(data, cb)
+    if data and data.model then
+        TriggerServerEvent("mt:vehicle:buy", { model = data.model })
     end
+    cb({})
+end)
 
-    return found
-end
+RegisterNUICallback("garageClose", function(_, cb)
+    SetNuiFocus(false, false); cb({})
+end)
 
-local function NormalizePlate(plate)
-    return plate and plate:gsub("%s+", ""):upper() or ""
-end
-
-local function DoStoreVehicle(vehicleData)
-    pendingStorePlate = vehicleData.plate
-    local fuel        = GetVehicleFuelLevel(vehicleData.entity)
-    local mileage     = _HudModule and _HudModule.GetOdometer() or 0
-    TriggerServerEvent(MT.VEHICLE_STORE, {
-        plate     = NormalizePlate(vehicleData.plate),
-        vehicleId = vehicleData.id, -- falls vorhanden → Server nutzt ID statt Plate-Suche
-        fuel      = Utils.Round(fuel, 0),
-        mileage   = Utils.Round(mileage, 1),
-    })
-end
-
-local function StoreCurrentVehicle(zoneName)
-    local zone         = Config.Zones[zoneName or "garage_stadtmitte"]
-    local garageCoords = zone and zone.coords or GetEntityCoords(PlayerPedId())
-
-    local nearby       = GetNearbyOwnVehicles(garageCoords)
-
-    if #nearby == 0 then
-        lib.notify({
-            title       = "Kein Fahrzeug in der Nähe",
-            description = ("Dein Fahrzeug muss innerhalb von %dm zur Garage stehen."):format(STORE_RADIUS),
-            type        = "error",
-        })
-        return
-    end
-
-    -- Nur ein Fahrzeug in der Nähe → direkt einlagern
-    if #nearby == 1 then
-        DoStoreVehicle(nearby[1])
-        return
-    end
-
-    -- Mehrere Fahrzeuge → Auswahl anzeigen
-    local options = {}
-    for _, v in ipairs(nearby) do
-        table.insert(options, {
-            title       = ("🚛 %s"):format(v.plate),
-            description = ("%.1f m entfernt"):format(v.dist),
-            onSelect    = function()
-                DoStoreVehicle(v)
-            end,
+RegisterNUICallback("garageRetrieve", function(data, cb)
+    if data and data.vehicleId then
+        TriggerServerEvent("mt:vehicle:retrieve", {
+            vehicleId = data.vehicleId,
+            spawnZone = data.zoneName or VehicleModule._lastGarageZone,
         })
     end
+    cb({})
+end)
 
-    lib.registerContext({
-        id      = "mt_store_select",
-        title   = "Welches Fahrzeug einlagern?",
-        options = options,
+RegisterNUICallback("upgradeClose", function(_, cb)
+    upgradePanel = false
+    SetNuiFocus(false, false); cb({})
+end)
+
+RegisterNUICallback("upgradeBuy", function(data, cb)
+    if not spawnedVehicle or not data then
+        cb({}); return
+    end
+    TriggerServerEvent(MT.VEHICLE_UPGRADE_BUY, {
+        vehicleId  = spawnedVehicle.id,
+        upgradeKey = data.upgradeKey,
+        level      = data.level,
     })
-    lib.showContext("mt_store_select")
-end
+    cb({})
+end)
 
 -- ────────────────────────────────────────────────────────────
 --  Öffentliche API
@@ -675,7 +533,6 @@ function VehicleModule.GetCurrentVehicleType()
     local ped     = PlayerPedId()
     local vehicle = GetVehiclePedIsIn(ped, false)
     if not vehicle or vehicle == 0 then return nil end
-
     local hash = GetEntityModel(vehicle)
     for vType, models in pairs(Config.VehicleTypes) do
         for _, m in ipairs(models) do
@@ -690,7 +547,6 @@ end
 -- ────────────────────────────────────────────────────────────
 
 function VehicleModule.Init()
-    -- Server → Client Events
     RegisterNetEvent("mt:vehicle:buyResult", OnBuyResult)
     RegisterNetEvent("mt:vehicle:garageList", OnGarageList)
     RegisterNetEvent("mt:vehicle:spawnData", OnSpawnData)
@@ -698,42 +554,20 @@ function VehicleModule.Init()
     RegisterNetEvent("mt:vehicle:repairResult", OnRepairResult)
     RegisterNetEvent("mt:vehicle:storeResult", OnVehicleStoreResult)
 
-    -- Zone-Target Events (aus client/zones.lua)
-    AddEventHandler("mt:ui:openDealer", function()
-        OpenDealerMenu()
-    end)
+    AddEventHandler("mt:ui:openDealer", function() OpenDealerMenu() end)
+    AddEventHandler("mt:vehicle:retrieveFromGarage", function(zoneName) OpenGarageMenu(zoneName) end)
+    AddEventHandler("mt:vehicle:storeToGarage", function(zoneName) StoreCurrentVehicle(zoneName) end)
+    AddEventHandler("mt:vehicle:repair", function() RepairVehicle() end)
+    AddEventHandler("mt:ui:openUpgrades", function() OpenUpgradeMenu() end)
 
-    AddEventHandler("mt:vehicle:retrieveFromGarage", function(zoneName)
-        VehicleModule._lastGarageZone = zoneName
-        OpenGarageMenu(zoneName)
-    end)
-
-    AddEventHandler("mt:vehicle:storeToGarage", function(zoneName)
-        StoreCurrentVehicle(zoneName)
-    end)
-
-    AddEventHandler("mt:vehicle:repair", function()
-        RepairVehicle()
-    end)
-
-    AddEventHandler("mt:ui:openUpgrades", function()
-        OpenUpgradeMenu()
-    end)
-
-    -- Resource Stop: Tankstand + Kilometerstand noch schnell zum Server schicken
-    -- Der Server setzt stored=1 via onResourceStop, wir schicken nur noch die Werte
+    -- Resource Stop: Tankstand + Kilometerstand sichern
     AddEventHandler("onResourceStop", function(resourceName)
         if resourceName ~= GetCurrentResourceName() then return end
         if not spawnedVehicle or not DoesEntityExist(spawnedVehicle.entity) then return end
-
-        local fuel    = GetVehicleFuelLevel(spawnedVehicle.entity)
-        local mileage = _HudModule and _HudModule.GetOdometer() or 0
-
-        -- Synchroner DB-Update (kein Callback nötig, Resource stirbt gleich)
         TriggerServerEvent("mt:vehicle:emergencyStore", {
             plate   = spawnedVehicle.plate,
-            fuel    = Utils.Round(fuel, 0),
-            mileage = Utils.Round(mileage, 1),
+            fuel    = Utils.Round(GetVehicleFuelLevel(spawnedVehicle.entity), 0),
+            mileage = Utils.Round(_HudModule and _HudModule.GetOdometer() or 0, 1),
         })
     end)
 

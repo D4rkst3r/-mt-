@@ -88,3 +88,11 @@ end
 function Utils.XPForLevel(level)
     return math.floor(100 * (level ^ 1.8))
 end
+
+-- Gibt den License-Identifier eines Spielers zurück (Server-only)
+function Utils.GetIdentifier(source)
+    for _, v in ipairs(GetPlayerIdentifiers(source)) do
+        if v:sub(1, 8) == "license:" then return v end
+    end
+    return nil
+end

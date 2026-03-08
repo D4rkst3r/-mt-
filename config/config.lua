@@ -87,5 +87,5 @@ Config.HudDefaults          = {
 -- ────────────────────────────────────────────────────────────
 --  Debug
 -- ────────────────────────────────────────────────────────────
-Config.Debug                = true -- Zusätzliche Print-Ausgaben
-Config.DebugZones           = true -- Zonen-Grenzen in der Welt anzeigen
+Config.Debug                = false -- Zusätzliche Print-Ausgaben
+Config.DebugZones           = false -- Zonen-Grenzen in der Welt anzeigen
