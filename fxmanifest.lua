@@ -53,7 +53,6 @@ dependencies {
     'oxmysql',
     'ox_target',
     'ox_lib',
-    'ox_inventory',
 }
 
 lua54 'yes'

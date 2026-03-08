@@ -72,8 +72,7 @@ local function SpawnVehicle(data, spawnCoords, heading)
         -- Mission Entity damit GTA es nicht despawnt
         SetEntityAsMissionEntity(vehicle, true, true)
 
-        -- Fahrzeug als "dem Spieler gehörend" markieren – verhindert Hotwire/Starten-Bug
-        SetVehicleHasBeenOwned(vehicle, true)
+        -- Verhindert Hotwire/Starten-Bug
         SetVehicleNeedsToBeHotwired(vehicle, false)
 
         -- Vollständig repariert spawnen (verhindert "kaputt & nicht startbar" Bug)
@@ -561,16 +560,18 @@ end
 --  Fahrzeug einlagern (aus Zone-Target)
 -- ────────────────────────────────────────────────────────────
 
-local STORE_RADIUS = 15.0 -- Meter – Fahrzeug muss innerhalb stehen
+local STORE_RADIUS = 20.0 -- Meter – Fahrzeug muss in der Nähe des Spielers stehen
 
 -- Gibt alle eigenen MT-Fahrzeuge zurück die innerhalb des Radius stehen
 local function GetNearbyOwnVehicles(garageCoords)
-    local found = {}
+    local found     = {}
+    -- Abstand immer vom Spieler messen – nicht vom Zonen-Mittelpunkt
+    local pedCoords = GetEntityCoords(PlayerPedId())
 
     -- Eigenes aktuell getracktetes Fahrzeug
     if spawnedVehicle and DoesEntityExist(spawnedVehicle.entity) then
         local vehCoords = GetEntityCoords(spawnedVehicle.entity)
-        local dist      = #(garageCoords - vehCoords)
+        local dist      = #(pedCoords - vehCoords)
         if dist <= STORE_RADIUS then
             table.insert(found, {
                 entity = spawnedVehicle.entity,
@@ -581,12 +582,15 @@ local function GetNearbyOwnVehicles(garageCoords)
         end
     else
         -- Fallback: spawnedVehicle nicht gesetzt (z.B. nach Resource-Restart)
-        -- Prüfe Fahrzeug in dem der Spieler gerade sitzt
         local ped     = PlayerPedId()
         local vehicle = GetVehiclePedIsIn(ped, false)
+        if not vehicle or vehicle == 0 then
+            -- Spieler sitzt nicht drin → nächstes Fahrzeug in der Nähe suchen
+            vehicle = GetClosestVehicle(pedCoords.x, pedCoords.y, pedCoords.z, STORE_RADIUS, 0, 70)
+        end
         if vehicle and vehicle ~= 0 then
             local vehCoords = GetEntityCoords(vehicle)
-            local dist      = #(garageCoords - vehCoords)
+            local dist      = #(pedCoords - vehCoords)
             if dist <= STORE_RADIUS then
                 local plate = GetVehicleNumberPlateText(vehicle):gsub("%s+", "")
                 table.insert(found, {

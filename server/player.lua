@@ -52,8 +52,20 @@ end
 
 local function LoadPlayer(source)
     local identifier = GetIdentifier(source)
+
+    -- Identifier manchmal noch nicht verfügbar direkt beim Verbinden → kurz warten & retry
     if not identifier then
-        DropPlayer(source, "Kein gültiger License-Identifier.")
+        print(("[MT] Kein Identifier für source %d – warte 2s und versuche erneut"):format(source))
+        SetTimeout(2000, function()
+            identifier = GetIdentifier(source)
+            if not identifier then
+                print(("[MT] FEHLER: Immer noch kein Identifier für source %d"):format(source))
+                -- Nicht droppen – stattdessen Fallback-Identifier verwenden
+                identifier = "unknown:" .. tostring(source)
+            end
+            -- Rekursiv mit gefundenem (oder Fallback-) Identifier weitermachen
+            LoadPlayer(source)
+        end)
         return
     end
 

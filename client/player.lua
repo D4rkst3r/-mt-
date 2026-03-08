@@ -44,7 +44,6 @@ local function OnPlayerLoaded(data)
     PlayerModule.data   = data
     PlayerModule.loaded = true
 
-
     -- Spawn in eigenem Thread
     CreateThread(function()
         exports.spawnmanager:setAutoSpawn(false)
@@ -67,8 +66,6 @@ local function OnPlayerLoaded(data)
         end
 
         -- 2. Spieler-Model setzen
-        --    mp_m_freemode_01 braucht SetPedDefaultComponentVariation
-        --    sonst bleibt der Char komplett unsichtbar
         SetPlayerModel(PlayerId(), modelHash)
         SetPedDefaultComponentVariation(PlayerPedId())
         SetPedComponentVariation(PlayerPedId(), 0, 0, 0, 2)
@@ -78,9 +75,10 @@ local function OnPlayerLoaded(data)
         local ped = PlayerPedId()
         SetEntityCoords(ped, spawnCoords.x, spawnCoords.y, spawnCoords.z, false, false, false, false)
         SetEntityHeading(ped, spawnHeading)
-        Wait(100)
+        Wait(200)
 
-        -- 4. Ladebildschirm schliessen
+        -- 4. Ladebildschirm schließen (beide Varianten für Kompatibilität)
+        ShutdownLoadingScreen()
         ShutdownLoadingScreenNui()
 
         -- 5. Sichtbarkeit sicherstellen
@@ -147,11 +145,26 @@ function PlayerModule.Init()
     exports("GetLevel", PlayerModule.GetLevel)
     exports("GetMoney", PlayerModule.GetMoney)
 
-    -- Client ist bereit → Server nach Daten fragen.
-    -- Verhindert Race Condition: Server könnte MT.PLAYER_LOADED feuern
-    -- bevor RegisterNetEvent hier oben ausgeführt wurde → Event geht verloren
-    -- → spawnPlayer() wird nie aufgerufen → ShutdownLoadingScreen() nie → ewiger Ladescreen
+    -- Server nach Daten fragen
     TriggerServerEvent("mt:player:requestLoad")
+
+    -- Fallback: Falls PLAYER_LOADED nach 10s noch nicht kam → nochmal anfragen
+    -- (passiert wenn Server-DB beim ersten Request noch nicht bereit war)
+    CreateThread(function()
+        Wait(10000)
+        if not PlayerModule.loaded then
+            print("[MT] WARNUNG: PLAYER_LOADED nicht empfangen – zweiter Versuch")
+            TriggerServerEvent("mt:player:requestLoad")
+
+            -- Letzter Ausweg nach 20s: Loading Screen trotzdem schließen
+            Wait(10000)
+            if not PlayerModule.loaded then
+                print("[MT] FEHLER: PLAYER_LOADED nie empfangen – erzwinge ShutdownLoadingScreen")
+                ShutdownLoadingScreen()
+                ShutdownLoadingScreenNui()
+            end
+        end
+    end)
 
     print("[MT] PlayerModule (Client) initialisiert")
 end
