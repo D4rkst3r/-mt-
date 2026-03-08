@@ -44,24 +44,60 @@ local function OnPlayerLoaded(data)
     PlayerModule.data   = data
     PlayerModule.loaded = true
 
-    -- Spawn in eigenem Thread – NetEvent-Handler darf nicht blockieren
-    CreateThread(function()
-        exports.spawnmanager:spawnPlayer({
-            x       = 213.7,
-            y       = -810.5,
-            z       = 30.7,
-            heading = 0.0,
-            model   = "mp_m_freemode_01",
-        }, function(spawn)
-            TriggerEvent("mt:player:ready", data)
 
-            lib.notify({
-                title       = "Motor Town",
-                description = ("Willkommen, %s! Level %d"):format(data.name, data.trucking_level),
-                type        = "success",
-                duration    = 5000,
-            })
-        end)
+    -- Spawn in eigenem Thread
+    CreateThread(function()
+        exports.spawnmanager:setAutoSpawn(false)
+
+        local spawnCoords  = vec3(213.7, -810.5, 30.7)
+        local spawnHeading = 0.0
+        local modelName    = "mp_m_freemode_01"
+        local modelHash    = GetHashKey(modelName)
+
+        -- 1. Model laden und warten
+        RequestModel(modelHash)
+        local timeout = 0
+        while not HasModelLoaded(modelHash) do
+            Wait(100)
+            timeout = timeout + 1
+            if timeout > 50 then
+                print("[MT] WARNUNG: Model " .. modelName .. " Timeout")
+                break
+            end
+        end
+
+        -- 2. Spieler-Model setzen
+        --    mp_m_freemode_01 braucht SetPedDefaultComponentVariation
+        --    sonst bleibt der Char komplett unsichtbar
+        SetPlayerModel(PlayerId(), modelHash)
+        SetPedDefaultComponentVariation(PlayerPedId())
+        SetPedComponentVariation(PlayerPedId(), 0, 0, 0, 2)
+        SetModelAsNoLongerNeeded(modelHash)
+
+        -- 3. Zur Spawn-Position teleportieren
+        local ped = PlayerPedId()
+        SetEntityCoords(ped, spawnCoords.x, spawnCoords.y, spawnCoords.z, false, false, false, false)
+        SetEntityHeading(ped, spawnHeading)
+        Wait(100)
+
+        -- 4. Ladebildschirm schliessen
+        ShutdownLoadingScreenNui()
+
+        -- 5. Sichtbarkeit sicherstellen
+        SetEntityVisible(ped, true, false)
+        SetEntityAlpha(ped, 255, false)
+        FreezeEntityPosition(ped, false)
+        NetworkSetEntityInvisibleToNetwork(ped, false)
+
+        -- 6. Fertig
+        TriggerEvent("mt:player:ready", data)
+
+        lib.notify({
+            title       = "Motor Town",
+            description = ("Willkommen, %s! Level %d"):format(data.name, data.trucking_level),
+            type        = "success",
+            duration    = 5000,
+        })
     end)
 end
 
@@ -101,9 +137,6 @@ end
 -- ────────────────────────────────────────────────────────────
 
 function PlayerModule.Init()
-    -- RegisterNetEvent registriert den Handler für Server→Client Events.
-    -- AddEventHandler würde denselben Handler ein zweites Mal binden
-    -- und alle Callbacks doppelt feuern → hier NUR RegisterNetEvent.
     RegisterNetEvent(MT.PLAYER_LOADED, OnPlayerLoaded)
     RegisterNetEvent(MT.PLAYER_MONEY_UPDATE, OnMoneyUpdate)
     RegisterNetEvent(MT.PLAYER_XP_UPDATE, OnXPUpdate)
@@ -113,6 +146,11 @@ function PlayerModule.Init()
     exports("IsPlayerLoaded", PlayerModule.IsLoaded)
     exports("GetLevel", PlayerModule.GetLevel)
     exports("GetMoney", PlayerModule.GetMoney)
+
+    -- Client ist bereit → Server nach Daten fragen.
+    -- Verhindert Race Condition: Server könnte MT.PLAYER_LOADED feuern
+    -- bevor RegisterNetEvent hier oben ausgeführt wurde → Event geht verloren
+    -- → spawnPlayer() wird nie aufgerufen → ShutdownLoadingScreen() nie → ewiger Ladescreen
     TriggerServerEvent("mt:player:requestLoad")
 
     print("[MT] PlayerModule (Client) initialisiert")
