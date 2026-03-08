@@ -175,6 +175,46 @@
             <input type="range" id="ze-rot" min="0" max="360" step="1" value="0">
         </div>
 
+        <div class="ze-divider"></div>
+
+        <!-- Blip Vorschau -->
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+            <div id="ze-blip-preview" style="
+                width:36px;height:36px;border-radius:50%;
+                background:#fff;flex-shrink:0;
+                display:flex;align-items:center;justify-content:center;
+                font-size:18px;box-shadow:0 0 10px rgba(255,255,255,0.2);
+                transition:background 0.15s;
+            ">📦</div>
+            <div style="flex:1">
+                <div id="ze-blip-name" style="font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;">Kiste</div>
+                <div id="ze-blip-colorname" style="font-size:11px;color:rgba(255,255,255,0.4);">Blau</div>
+            </div>
+            <label
+                style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.45);cursor:pointer;">
+                <input type="checkbox" id="ze-noblip" style="width:14px;height:14px;accent-color:#f0b429">
+                kein Blip
+            </label>
+        </div>
+
+        <div class="ze-field">
+            <label>Blip Sprite <span id="ze-sprite-val">477</span> — <span id="ze-sprite-name"
+                    style="color:rgba(255,255,255,0.5);font-weight:400;text-transform:none"></span></label>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                <button id="ze-sprite-prev"
+                    style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">◀</button>
+                <input type="range" id="ze-sprite" min="0" max="957" step="1" value="477" style="flex:1">
+                <button id="ze-sprite-next"
+                    style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:14px;">▶</button>
+            </div>
+        </div>
+
+        <div class="ze-field">
+            <label>Blip Farbe <span id="ze-bcolor-val">2</span></label>
+            <div id="ze-color-palette" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;"></div>
+            <input type="hidden" id="ze-bcolor" value="2">
+        </div>
+
         <div class="ze-actions">
             <button class="ze-btn ze-btn-cancel" id="ze-cancel">Abbrechen</button>
             <button class="ze-btn ze-btn-save" id="ze-save">✓ Speichern</button>

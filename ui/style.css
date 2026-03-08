@@ -393,3 +393,16 @@ body {
     gap: 10px;
 }
 .ze-size-row .ze-field { margin-bottom: 0; }
+
+/* ── Blip Color Palette ────────────────────────────────────── */
+.ze-color-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.1s, border-color 0.1s;
+    flex-shrink: 0;
+}
+.ze-color-swatch:hover  { transform: scale(1.2); }
+.ze-color-swatch.active { border-color: #fff; transform: scale(1.2); }

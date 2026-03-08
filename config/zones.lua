@@ -27,6 +27,7 @@ Config.Zones = {
         label      = "Hafen Dispatcher",
         targets    = { "dispatcher_menu" },
         debugColor = { 0, 120, 255, 80 },
+        blip       = { sprite = 545, color = 3, scale = 0.9 },
     },
 
     dispatcher_industriegebiet = {
@@ -37,6 +38,7 @@ Config.Zones = {
         label      = "Industrie Dispatcher",
         targets    = { "dispatcher_menu" },
         debugColor = { 0, 120, 255, 80 },
+        blip       = { sprite = 545, color = 3, scale = 0.9 },
     },
 
     dispatcher_stadtmitte = {
@@ -47,6 +49,7 @@ Config.Zones = {
         label      = "Stadtmitte Dispatcher",
         targets    = { "dispatcher_menu" },
         debugColor = { 0, 120, 255, 80 },
+        blip       = { sprite = 545, color = 3, scale = 0.9 },
     },
 
     dispatcher_flughafen = {
@@ -57,6 +60,7 @@ Config.Zones = {
         label      = "Flughafen Dispatcher",
         targets    = { "dispatcher_menu" },
         debugColor = { 0, 120, 255, 80 },
+        blip       = { sprite = 545, color = 3, scale = 0.9 },
     },
 
     -- --------------------------------------------------------
@@ -72,6 +76,7 @@ Config.Zones = {
         targets    = { "cargo_laden" },
         debugColor = { 255, 165, 0, 80 },
         jobType    = "container",
+        blip       = { sprite = 477, color = 8, scale = 0.75 },
     },
 
     ladezone_holz = {
@@ -83,6 +88,7 @@ Config.Zones = {
         targets    = { "cargo_laden" },
         debugColor = { 255, 165, 0, 80 },
         jobType    = "holz",
+        blip       = { sprite = 477, color = 8, scale = 0.75 },
     },
 
     ladezone_kohle = {
@@ -94,6 +100,7 @@ Config.Zones = {
         targets    = { "cargo_laden" },
         debugColor = { 255, 165, 0, 80 },
         jobType    = "kohle",
+        blip       = { sprite = 477, color = 8, scale = 0.75 },
     },
 
     ladezone_tank = {
@@ -105,6 +112,7 @@ Config.Zones = {
         targets    = { "cargo_laden" },
         debugColor = { 255, 165, 0, 80 },
         jobType    = "tank",
+        blip       = { sprite = 477, color = 8, scale = 0.75 },
     },
 
     ladezone_muell = {
@@ -116,6 +124,7 @@ Config.Zones = {
         targets    = { "cargo_laden" },
         debugColor = { 255, 165, 0, 80 },
         jobType    = "muell",
+        blip       = { sprite = 477, color = 8, scale = 0.75 },
     },
 
     ablieferzone_supermarkt_north = {
@@ -126,6 +135,7 @@ Config.Zones = {
         label      = "Supermarkt beliefern",
         targets    = { "cargo_abladen" },
         debugColor = { 0, 255, 80, 80 },
+        blip       = { sprite = 52, color = 2, scale = 0.75 },
     },
 
     ablieferzone_supermarkt_east = {
@@ -136,6 +146,7 @@ Config.Zones = {
         label      = "Supermarkt beliefern",
         targets    = { "cargo_abladen" },
         debugColor = { 0, 255, 80, 80 },
+        blip       = { sprite = 52, color = 2, scale = 0.75 },
     },
 
     ablieferzone_kraftwerk = {
@@ -146,6 +157,7 @@ Config.Zones = {
         label      = "Kraftwerk beliefern",
         targets    = { "cargo_abladen" },
         debugColor = { 0, 255, 80, 80 },
+        blip       = { sprite = 354, color = 5, scale = 0.75 },
     },
 
     -- --------------------------------------------------------
@@ -168,6 +180,7 @@ Config.Zones = {
         label      = "Spezialfahrzeuge",
         targets    = { "dealer_menu" },
         debugColor = { 180, 0, 255, 60 },
+        blip       = { sprite = 523, color = 5, scale = 0.95 },
     },
 
     -- --------------------------------------------------------
@@ -184,6 +197,7 @@ Config.Zones = {
         label        = "Garage (Hafen)",
         targets      = { "garage_menu" },
         debugColor   = { 255, 255, 0, 80 },
+        blip         = { sprite = 357, color = 2, scale = 0.85 },
     },
 
     garage_industrie = {
@@ -196,6 +210,7 @@ Config.Zones = {
         label        = "Garage (Industrie)",
         targets      = { "garage_menu" },
         debugColor   = { 255, 255, 0, 80 },
+        blip         = { sprite = 357, color = 2, scale = 0.85 },
     },
 
     garage_stadtmitte = {
@@ -208,6 +223,7 @@ Config.Zones = {
         label        = "Garage (Stadtmitte)",
         targets      = { "garage_menu" },
         debugColor   = { 255, 255, 0, 80 },
+        blip         = { sprite = 357, color = 2, scale = 0.85 },
     },
 
     -- --------------------------------------------------------
@@ -221,6 +237,7 @@ Config.Zones = {
         label      = "Werkstatt",
         targets    = { "werkstatt_menu" },
         debugColor = { 255, 60, 60, 70 },
+        blip       = { sprite = 446, color = 59, scale = 0.85 },
     },
 
     werkstatt_north = {
@@ -259,6 +276,7 @@ Config.Zones = {
         targets    = { "fabrik_menu" },
         debugColor = { 200, 80, 80, 80 },
         factoryKey = "fleischfabrik",
+        blip       = { sprite = 338, color = 1, scale = 0.8 },
     },
 
     -- Separate Abladezone vor der Fleischfabrik (Einfahrt/Laderampe)
@@ -270,6 +288,7 @@ Config.Zones = {
         label      = "Fleischfabrik – Anlieferung",
         targets    = { "cargo_abladen" },
         debugColor = { 255, 100, 0, 100 },
+        blip       = { sprite = 477, color = 8, scale = 0.75 },
     },
 
     fabrik_saegerei = {
@@ -281,6 +300,7 @@ Config.Zones = {
         targets    = { "fabrik_menu" },
         debugColor = { 200, 80, 80, 80 },
         factoryKey = "saegerei",
+        blip       = { sprite = 338, color = 59, scale = 0.8 },
     },
 
     -- --------------------------------------------------------

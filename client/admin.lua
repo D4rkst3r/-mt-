@@ -72,6 +72,7 @@ local function OpenZoneEditMenu(zoneKey, zoneData)
         sizeY    = initSz.y,
         sizeZ    = initSz.z,
         rotation = zoneData.rotation or 0,
+        blip     = zoneData.blip, -- nil wenn kein Blip gesetzt
     })
     SetNuiFocus(true, true)
 end
@@ -103,6 +104,8 @@ RegisterNUICallback("zoneEditorSave", function(data, cb)
     newData.label    = data.label
     newData.size     = { x = data.sizeX, y = data.sizeY, z = data.sizeZ }
     newData.rotation = data.rotation
+    -- Blip übernehmen (nil = kein Blip)
+    newData.blip     = data.blip
 
     local c          = editingZoneData.coords
     newData.coords   = type(c) == "userdata" and Vec3ToTable(c) or c
