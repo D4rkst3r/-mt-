@@ -313,8 +313,8 @@ local function OnJobComplete(data)
         _TownBonusModule.OnDelivery(job.deliveryZone)
     end
 
-    -- Supply Chain informieren
-    TriggerEvent(MT.SUPPLY_UPDATE, job.jobKey, job.deliveryZone)
+    -- Supply Chain informieren (internes Server-Event)
+    TriggerEvent("mt:supply:deliveryComplete", job.jobKey, job.deliveryZone)
 
     -- Job-State aufräumen
     activeJobs[source] = nil

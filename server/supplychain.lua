@@ -1,9 +1,6 @@
 -- ============================================================
 --  server/supplychain.lua
 --  Produktions-Loop, Stock-Management, Job-Generierung.
---
---  State lebt in Memory (stocks-Table) und wird periodisch
---  in mt_stocks persistiert. Beim Start wird aus DB geladen.
 -- ============================================================
 
 local SupplyChainModule = {}
@@ -11,17 +8,18 @@ local SupplyChainModule = {}
 -- Live-State: [factoryKey] = { inputStock, outputStock }
 local stocks = {}
 
+-- Produkions-Timer pro Fabrik: [factoryKey] = nächster Tick (os.time())
+local nextProductionAt = {}
+
 -- ────────────────────────────────────────────────────────────
 --  DB: Laden & Speichern
 -- ────────────────────────────────────────────────────────────
 
 local function LoadStocks(cb)
     MySQL.query("SELECT * FROM mt_stocks", {}, function(rows)
-        -- Erst alle Fabriken mit 0 initialisieren
         for key, _ in pairs(Config.Factories) do
             stocks[key] = { inputStock = 0, outputStock = 0 }
         end
-        -- Dann DB-Werte überschreiben
         if rows then
             for _, row in ipairs(rows) do
                 if stocks[row.factory_key] then
@@ -32,17 +30,22 @@ local function LoadStocks(cb)
                 end
             end
         end
+        -- Produktionszeitpunkte initialisieren
+        local now = os.time()
+        for key, factory in pairs(Config.Factories) do
+            nextProductionAt[key] = now + (factory.productionTime or 300)
+        end
         if cb then cb() end
     end)
 end
 
 local function SaveStocks()
     for factoryKey, stock in pairs(stocks) do
-        MySQL.update(
+        MySQL.rawExecute(
             [[INSERT INTO mt_stocks (factory_key, input_stock, output_stock)
               VALUES (?, ?, ?)
               ON DUPLICATE KEY UPDATE
-                input_stock = VALUES(input_stock),
+                input_stock  = VALUES(input_stock),
                 output_stock = VALUES(output_stock)]],
             { factoryKey, stock.inputStock, stock.outputStock }
         )
@@ -50,99 +53,122 @@ local function SaveStocks()
 end
 
 -- ────────────────────────────────────────────────────────────
---  Produktions-Tick (alle 5 Min)
+--  BUG 1 FIX: SetInterval existiert nicht in FiveM
+--  → eigene Loops mit CreateThread + Wait
 -- ────────────────────────────────────────────────────────────
 
-local function RunProductionTick()
-    local updates = {}
+-- BUG 4 FIX: Produktionszeit kommt aus factory.productionTime (pro Fabrik),
+-- nicht aus einem globalen Tick
+local function StartProductionLoop()
+    CreateThread(function()
+        while true do
+            Wait(10000) -- alle 10 Sek prüfen ob eine Fabrik dran ist
+            local now     = os.time()
+            local updates = {}
 
-    for factoryKey, factory in pairs(Config.Factories) do
-        local stock = stocks[factoryKey]
-        if not stock then goto continue end
+            for factoryKey, factory in pairs(Config.Factories) do
+                local stock = stocks[factoryKey]
+                if not stock then goto continue end
 
-        -- Genug Input vorhanden?
-        if stock.inputStock >= factory.input.amount then
-            -- Output-Cap prüfen
-            if stock.outputStock < factory.maxOutputStock then
-                stock.inputStock  = stock.inputStock - factory.input.amount
-                stock.outputStock = math.min(
-                    stock.outputStock + factory.output.amount,
-                    factory.maxOutputStock
-                )
+                -- Ist diese Fabrik dran?
+                if now < (nextProductionAt[factoryKey] or 0) then goto continue end
 
-                table.insert(updates, {
-                    key         = factoryKey,
-                    label       = factory.label,
-                    inputStock  = stock.inputStock,
-                    outputStock = stock.outputStock,
-                })
+                -- Nächsten Tick vorplanen (egal ob Produktion klappt)
+                nextProductionAt[factoryKey] = now + (factory.productionTime or 300)
 
-                -- Kraftwerk-Sondereffekt: Town Bonus anheben
-                if factory.townBonusEffect and _TownBonusModule then
-                    _TownBonusModule.BoostAll(factory.townBonusEffect)
+                -- Genug Input?
+                if stock.inputStock >= factory.input.amount then
+                    if stock.outputStock < factory.maxOutputStock then
+                        stock.inputStock  = stock.inputStock - factory.input.amount
+                        stock.outputStock = math.min(
+                            stock.outputStock + factory.output.amount,
+                            factory.maxOutputStock
+                        )
+
+                        table.insert(updates, {
+                            key         = factoryKey,
+                            label       = factory.label,
+                            inputStock  = stock.inputStock,
+                            outputStock = stock.outputStock,
+                        })
+
+                        -- Kraftwerk-Sondereffekt
+                        if factory.townBonusEffect and _TownBonusModule then
+                            _TownBonusModule.BoostAll(factory.townBonusEffect)
+                        end
+
+                        print(("[MT][Supply] %s produziert → Input: %d, Output: %d"):format(
+                            factory.label, stock.inputStock, stock.outputStock))
+                    end
                 end
 
-                print(("[MT][Supply] %s produziert: Input %d → Output %d"):format(
-                    factory.label, stock.inputStock, stock.outputStock
-                ))
+                -- Liefer-Job generieren wenn Output über Schwellwert
+                if stock.outputStock >= factory.deliveryThreshold then
+                    TriggerEvent(MT.SUPPLY_JOB_GENERATED, factoryKey, factory)
+                end
+
+                ::continue::
+            end
+
+            if #updates > 0 then
+                TriggerClientEvent("mt:supply:stockUpdate", -1, updates)
+                SaveStocks()
             end
         end
-
-        -- Neuen Liefer-Job generieren wenn Output-Stock über Schwellwert
-        if stock.outputStock >= factory.deliveryThreshold then
-            TriggerEvent(MT.SUPPLY_JOB_GENERATED, factoryKey, factory)
-        end
-
-        ::continue::
-    end
-
-    -- Clients über Stockänderungen informieren
-    if #updates > 0 then
-        TriggerClientEvent(MT.SUPPLY_UPDATE, -1, updates)
-    end
-
-    SaveStocks()
+    end)
 end
 
--- ────────────────────────────────────────────────────────────
---  Verbraucher-Tick (alle 10 Min)
--- ────────────────────────────────────────────────────────────
+local function StartConsumerLoop()
+    CreateThread(function()
+        while true do
+            Wait(Config.ConsumerTickMs or 600000) -- default 10 Min
 
-local function RunConsumerTick()
-    for _, consumer in ipairs(Config.Consumers) do
-        local stock = stocks[consumer.factoryKey]
-        if stock then
-            local before = stock.outputStock
-            stock.outputStock = math.max(0, stock.outputStock - consumer.rate)
+            for _, consumer in ipairs(Config.Consumers) do
+                local stock = stocks[consumer.factoryKey]
+                if stock then
+                    local before = stock.outputStock
+                    stock.outputStock = math.max(0, stock.outputStock - consumer.rate)
 
-            if before > 0 and stock.outputStock == 0 then
-                -- Stock leergelaufen → dringende Benachrichtigung
-                print(("[MT][Supply] WARNUNG: %s – %s-Stock erschöpft!"):format(
-                    consumer.label, consumer.item
-                ))
-                TriggerClientEvent(MT.SUPPLY_UPDATE, -1, {
-                    {
-                        key         = consumer.factoryKey,
-                        label       = consumer.label, -- war vorher nil → zeigt jetzt korrektes Label
-                        urgent      = true,
-                        inputStock  = stock.inputStock,
-                        outputStock = stock.outputStock
-                    }
-                })
+                    if before > 0 and stock.outputStock == 0 then
+                        print(("[MT][Supply] %s – %s-Stock erschöpft!"):format(
+                            consumer.label, consumer.item))
+                        TriggerClientEvent("mt:supply:stockUpdate", -1, { {
+                            key         = consumer.factoryKey,
+                            label       = consumer.label,
+                            urgent      = true,
+                            inputStock  = stock.inputStock,
+                            outputStock = stock.outputStock,
+                        } })
+                    end
+                end
             end
+
+            SaveStocks()
         end
-    end
-    SaveStocks()
+    end)
+end
+
+local function StartSaveLoop()
+    CreateThread(function()
+        while true do
+            Wait(2 * 60 * 1000)
+            SaveStocks()
+        end
+    end)
 end
 
 -- ────────────────────────────────────────────────────────────
 --  Job-Abschluss: Input-Stock einer Fabrik erhöhen
---  Wird über MT.SUPPLY_UPDATE Event vom jobs.lua getriggert
+--
+--  BUG 3 FIX: MT.SUPPLY_UPDATE war für zwei Dinge zuständig:
+--  - Server-lokal: OnDeliveryComplete (jobs.lua → supplychain.lua)
+--  - Client-Broadcast: Stock-Updates an alle Spieler
+--  Das ist ein Name-Conflict. Lösung:
+--  - Server-intern: MT.SUPPLY_DELIVERY (neues Event)
+--  - Client-Broadcast: "mt:supply:stockUpdate" (eigener Name)
 -- ────────────────────────────────────────────────────────────
 
 local function OnDeliveryComplete(jobKey, deliveryZone)
-    -- Finde Fabrik die diesen jobKey als deliveryJobKey hat
-    -- UND deren Zone mit deliveryZone übereinstimmt
     for factoryKey, factory in pairs(Config.Factories) do
         if factory.deliveryJobKey == jobKey then
             local stock = stocks[factoryKey]
@@ -154,17 +180,14 @@ local function OnDeliveryComplete(jobKey, deliveryZone)
                 if added > 0 then
                     stock.inputStock = stock.inputStock + added
                     print(("[MT][Supply] %s: Input +%d (jetzt: %d)"):format(
-                        factory.label, added, stock.inputStock
-                    ))
-                    -- Sofort an alle Clients broadcasten
-                    TriggerClientEvent(MT.SUPPLY_UPDATE, -1, {
-                        {
-                            key         = factoryKey,
-                            label       = factory.label,
-                            inputStock  = stock.inputStock,
-                            outputStock = stock.outputStock
-                        }
-                    })
+                        factory.label, added, stock.inputStock))
+                    TriggerClientEvent("mt:supply:stockUpdate", -1, { {
+                        key         = factoryKey,
+                        label       = factory.label,
+                        inputStock  = stock.inputStock,
+                        outputStock = stock.outputStock,
+                    } })
+                    SaveStocks()
                 end
             end
             break
@@ -173,15 +196,17 @@ local function OnDeliveryComplete(jobKey, deliveryZone)
 end
 
 -- ────────────────────────────────────────────────────────────
---  Client fragt Fabrikstatus an (für UI)
+--  BUG 2 FIX: NetEvent-Handler bekommen KEIN source-Parameter
+--  → source wird über die globale Variable `source` gelesen
 -- ────────────────────────────────────────────────────────────
 
-local function OnFactoryStatusRequest(source, factoryKey)
+local function OnFactoryStatusRequest(factoryKey)
+    local src     = source
     local factory = Config.Factories[factoryKey]
     local stock   = stocks[factoryKey]
     if not factory or not stock then return end
 
-    TriggerClientEvent("mt:supply:factoryStatus", source, {
+    TriggerClientEvent("mt:supply:factoryStatus", src, {
         factoryKey  = factoryKey,
         label       = factory.label,
         inputItem   = factory.input.item,
@@ -190,7 +215,6 @@ local function OnFactoryStatusRequest(source, factoryKey)
         outputStock = stock.outputStock,
         maxInput    = factory.maxInputStock,
         maxOutput   = factory.maxOutputStock,
-        -- Prozentsätze für UI-Progress-Bars
         inputPct    = Utils.Round(stock.inputStock / factory.maxInputStock * 100, 0),
         outputPct   = Utils.Round(stock.outputStock / factory.maxOutputStock * 100, 0),
     })
@@ -200,38 +224,27 @@ end
 --  Öffentliche API
 -- ────────────────────────────────────────────────────────────
 
-function SupplyChainModule.GetStock(factoryKey)
-    return stocks[factoryKey]
-end
+function SupplyChainModule.GetStock(factoryKey) return stocks[factoryKey] end
 
-function SupplyChainModule.GetAllStocks()
-    return stocks
-end
+function SupplyChainModule.GetAllStocks() return stocks end
 
 -- ────────────────────────────────────────────────────────────
 --  Init
 -- ────────────────────────────────────────────────────────────
 
 function SupplyChainModule.Init()
-    -- Stocks aus DB laden, dann Loops starten
     LoadStocks(function()
         print("[MT][Supply] Stocks geladen:")
         for key, s in pairs(stocks) do
             print(("  %s – Input: %d, Output: %d"):format(key, s.inputStock, s.outputStock))
         end
-
-        -- Produktions-Loop
-        SetInterval(RunProductionTick, Config.ProductionTickMs)
-
-        -- Verbraucher-Loop
-        SetInterval(RunConsumerTick, Config.ConsumerTickMs)
-
-        -- Periodisches Speichern (alle 2 Min extra)
-        SetInterval(SaveStocks, 2 * 60 * 1000)
+        StartProductionLoop()
+        StartConsumerLoop()
+        StartSaveLoop()
     end)
 
-    -- Event-Listener
-    AddEventHandler(MT.SUPPLY_UPDATE, OnDeliveryComplete)
+    -- BUG 3 FIX: eigenes internes Event statt MT.SUPPLY_UPDATE
+    AddEventHandler("mt:supply:deliveryComplete", OnDeliveryComplete)
 
     RegisterNetEvent("mt:supply:statusRequest", OnFactoryStatusRequest)
 

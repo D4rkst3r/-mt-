@@ -108,7 +108,7 @@ end
 -- ────────────────────────────────────────────────────────────
 
 function SupplyChainModule.Init()
-    RegisterNetEvent(MT.SUPPLY_UPDATE, OnSupplyUpdate)
+    RegisterNetEvent("mt:supply:stockUpdate", OnSupplyUpdate)
     RegisterNetEvent("mt:supply:factoryStatus", OnFactoryStatus)
 
     AddEventHandler("mt:supply:openFactory", OnOpenFactory)
