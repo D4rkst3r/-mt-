@@ -13,7 +13,7 @@ Config                  = Config or {}
 
 -- Wie viel XP ein Job pro Kilometer einbringt (Basis)
 Config.XPPerKm          = 10
-Config.XPBaseDelivery   = 50 -- Fixbonus pro Ablieferung
+Config.XPBaseDelivery   = 50   -- Fixbonus pro Ablieferung
 Config.MaxJobDistance   = 80.0 -- Meter: wie nah muss Spieler an Zielzone sein?
 Config.LoadProgressMs   = 5000 -- Millisekunden für Lade-Progressbar
 Config.UnloadProgressMs = 4000
@@ -32,11 +32,11 @@ Config.Jobs             = {
         wagePerKm     = 100,
         wagePerTon    = 60,
         timeBonus     = true, -- Zeitbonus wenn schnell geliefert
-        timeLimitMin  = 30,  -- Minuten bis Zeitbonus verfällt
+        timeLimitMin  = 30,   -- Minuten bis Zeitbonus verfällt
         cargo         = {
             item   = "container",
             label  = "Seecontainer",
-            weight = 8000,   -- kg (für wagePerTon-Berechnung)
+            weight = 8000, -- kg (für wagePerTon-Berechnung)
             amount = 1,
         },
         -- Mögliche Abholzonen (wird zufällig gewählt)
@@ -209,7 +209,7 @@ Config.Jobs             = {
             amount = 1,
         },
         pickupZones   = { "ladezone_hafen_container" },
-        deliveryZones = { "fabrik_fleisch" },
+        deliveryZones = { "ablieferzone_fleischfabrik" },
         blipColor     = 3,
         blipSprite    = 477,
     },

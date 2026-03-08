@@ -261,6 +261,17 @@ Config.Zones = {
         factoryKey = "fleischfabrik",
     },
 
+    -- Separate Abladezone vor der Fleischfabrik (Einfahrt/Laderampe)
+    ablieferzone_fleischfabrik = {
+        type       = "box",
+        coords     = vec3(971.5, -2055.0, 30.7), -- ~12m vor der Fabrik
+        size       = vec3(8.0, 5.0, 3.0),
+        rotation   = 0,
+        label      = "Fleischfabrik – Anlieferung",
+        targets    = { "cargo_abladen" },
+        debugColor = { 255, 100, 0, 100 },
+    },
+
     fabrik_saegerei = {
         type       = "box",
         coords     = vec3(1634.7, 3519.2, 35.9),

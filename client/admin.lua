@@ -48,48 +48,85 @@ end
 --  Zone Menüs
 -- ────────────────────────────────────────────────────────────
 
+-- Aktuell bearbeitete Zone (für NUI-Callbacks)
+local editingZoneKey  = nil
+local editingZoneData = nil
+
 local function OpenZoneEditMenu(zoneKey, zoneData)
-    -- Formular mit den wichtigsten Feldern
-    local result = lib.inputDialog("Zone bearbeiten: " .. zoneKey, {
-        { type = "input",  label = "Label",           default = zoneData.label or "",                   required = true },
-        { type = "number", label = "Größe X",         default = zoneData.size and zoneData.size.x or 4, min = 1,        max = 100 },
-        { type = "number", label = "Größe Y",         default = zoneData.size and zoneData.size.y or 4, min = 1,        max = 100 },
-        { type = "number", label = "Größe Z",         default = zoneData.size and zoneData.size.z or 2, min = 1,        max = 20 },
-        { type = "number", label = "Rotation (Grad)", default = zoneData.rotation or 0,                 min = 0,        max = 360 },
+    local coords    = zoneData.coords
+    local sz        = zoneData.size
+    local initSz    = sz and vec3(sz.x or 4, sz.y or 4, sz.z or 2) or vec3(4, 4, 2)
+
+    editingZoneKey  = zoneKey
+    editingZoneData = zoneData
+
+    -- Preview sofort zeigen
+    ShowPreview(coords, initSz, zoneData.rotation or 0)
+
+    -- NUI-Panel öffnen
+    SendNUIMessage({
+        action   = "openZoneEditor",
+        key      = zoneKey,
+        label    = zoneData.label or "",
+        sizeX    = initSz.x,
+        sizeY    = initSz.y,
+        sizeZ    = initSz.z,
+        rotation = zoneData.rotation or 0,
     })
-    if not result then return end
+    SetNuiFocus(true, true)
+end
 
-    local newData = {}
-    for k, v in pairs(zoneData) do newData[k] = v end -- Kopie
+-- NUI Callbacks: Zone Editor
+RegisterNUICallback("zoneEditorChange", function(data, cb)
+    -- Live-Preview updaten
+    if editingZoneData and editingZoneData.coords then
+        local c = editingZoneData.coords
+        local coords = type(c) == "userdata" and c or vec3(c.x, c.y, c.z)
+        ShowPreview(coords,
+            vec3(data.sizeX or 4, data.sizeY or 4, data.sizeZ or 2),
+            data.rotation or 0)
+    end
+    cb("ok")
+end)
 
-    newData.label    = result[1]
-    newData.size     = { x = result[2], y = result[3], z = result[4] }
-    newData.rotation = result[5]
-
-    -- Preview anzeigen
-    local coords     = zoneData.coords
-    ShowPreview(coords, vec3(result[2], result[3], result[4]), result[5])
-
-    -- Bestätigen
-    local confirm = lib.alertDialog({
-        header   = "Zone speichern?",
-        content  = ("Label: %s\nGröße: %.0fx%.0fx%.0f\nRotation: %d°"):format(
-            result[1], result[2], result[3], result[4], result[5]),
-        centered = true,
-        cancel   = true,
-    })
+RegisterNUICallback("zoneEditorSave", function(data, cb)
+    SetNuiFocus(false, false)
     RemovePreview()
-    if confirm ~= "confirm" then return end
 
-    -- Koordinaten serialisieren
-    newData.coords = Vec3ToTable(coords)
-    if newData.size then
-        newData.size = { x = result[2], y = result[3], z = result[4] }
+    if not editingZoneKey or not editingZoneData then
+        cb("ok")
+        return
     end
 
-    TriggerServerEvent("mt:admin:saveZone", { key = zoneKey, zoneData = newData })
-    Notify("✅ Zone gespeichert", zoneKey, "success")
-end
+    local newData = {}
+    for k, v in pairs(editingZoneData) do newData[k] = v end
+    newData.label    = data.label
+    newData.size     = { x = data.sizeX, y = data.sizeY, z = data.sizeZ }
+    newData.rotation = data.rotation
+
+    local c          = editingZoneData.coords
+    newData.coords   = type(c) == "userdata" and Vec3ToTable(c) or c
+
+    TriggerServerEvent("mt:admin:saveZone", { key = editingZoneKey, zoneData = newData })
+    Notify("✅ Zone gespeichert", editingZoneKey, "success")
+
+    -- Menü wieder öffnen
+    TriggerServerEvent("mt:admin:fetchConfig", { category = "zone" })
+
+    editingZoneKey  = nil
+    editingZoneData = nil
+    cb("ok")
+end)
+
+RegisterNUICallback("zoneEditorCancel", function(data, cb)
+    SetNuiFocus(false, false)
+    RemovePreview()
+    editingZoneKey  = nil
+    editingZoneData = nil
+    -- Menü wieder öffnen
+    TriggerServerEvent("mt:admin:fetchConfig", { category = "zone" })
+    cb("ok")
+end)
 
 local function OpenZoneCreateMenu()
     local ped    = PlayerPedId()
@@ -162,7 +199,6 @@ local function OpenZoneListMenu(zones)
                         {
                             title    = "✏️ Bearbeiten",
                             onSelect = function()
-                                -- Koordinaten von JSON zurück in vec3
                                 if data.coords and type(data.coords) == "table" then
                                     data.coords = vec3(data.coords.x, data.coords.y, data.coords.z)
                                 end
@@ -170,6 +206,42 @@ local function OpenZoneListMenu(zones)
                                     data.size = vec3(data.size.x, data.size.y, data.size.z)
                                 end
                                 OpenZoneEditMenu(key, data)
+                            end,
+                        },
+                        {
+                            title       = "📌 Hierher verschieben",
+                            description = "Setzt die Zone auf deine aktuelle Position",
+                            onSelect    = function()
+                                local pos = GetEntityCoords(PlayerPedId())
+                                local sz  = data.size
+                                local sv  = sz and vec3(sz.x or 4, sz.y or 4, sz.z or 2) or vec3(4, 4, 2)
+
+                                -- Preview sofort an neuer Position
+                                ShowPreview(pos, sv, data.rotation or 0)
+
+                                local confirm = lib.alertDialog({
+                                    header   = "Zone verschieben?",
+                                    content  = ("**%s** wird verschoben nach:\n%.1f / %.1f / %.1f"):format(
+                                        key, pos.x, pos.y, pos.z),
+                                    centered = true,
+                                    cancel   = true,
+                                })
+                                RemovePreview()
+                                if confirm ~= "confirm" then return end
+
+                                -- Neue Coords, alles andere bleibt gleich
+                                local newData = {}
+                                for k2, v2 in pairs(data) do newData[k2] = v2 end
+                                newData.coords = { x = pos.x, y = pos.y, z = pos.z }
+                                if newData.size and type(newData.size) == "userdata" then
+                                    newData.size = { x = newData.size.x, y = newData.size.y, z = newData.size.z }
+                                end
+
+                                TriggerServerEvent("mt:admin:saveZone", { key = key, zoneData = newData })
+                                Notify("📌 Zone verschoben", ("%s → %.1f/%.1f/%.1f"):format(key, pos.x, pos.y, pos.z),
+                                    "success")
+                                -- Menü wieder öffnen
+                                TriggerServerEvent("mt:admin:fetchConfig", { category = "zone" })
                             end,
                         },
                         {

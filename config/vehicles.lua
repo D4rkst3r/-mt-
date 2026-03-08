@@ -327,7 +327,7 @@ Config.Upgrades             = {
                 label  = "Seriell (Stufe 1)",
                 price  = 8000,
                 fields = {
-                    fInitialDriveForce = 0.05,   -- additiv zu Motor-Upgrade
+                    fInitialDriveForce = 0.05, -- additiv zu Motor-Upgrade
                     fDriveInertia      = 0.8,
                 },
             },
@@ -346,12 +346,40 @@ Config.Upgrades             = {
 -- ────────────────────────────────────────────────────────────
 --  Werkstatt-Preise
 -- ────────────────────────────────────────────────────────────
-Config.RepairCostPerDamage  = 8  -- $ pro Schadenpunkt (0–1000 intern)
+Config.RepairCostPerDamage  = 8   -- $ pro Schadenpunkt (0–1000 intern)
 Config.RepairMinCost        = 500 -- Mindestkosten auch bei Bagatellschaden
 Config.RepairProgressMs     = 8000
 
 -- ────────────────────────────────────────────────────────────
 --  Garage
 -- ────────────────────────────────────────────────────────────
-Config.MaxVehiclesPerPlayer = 5    -- Maximale Fahrzeuge pro Spieler
+Config.MaxVehiclesPerPlayer = 5             -- Maximale Fahrzeuge pro Spieler
 Config.SpawnOffset          = vec3(0, 5, 0) -- Spawn etwas vor dem Garagentor
+
+-- ────────────────────────────────────────────────────────────
+--  Trailer-Definitionen
+--  Welche Trailer-Modelle gehören zu welchem vehicleType.
+--  Der Server/Client prüft ob der richtige Trailer angekoppelt ist.
+--
+--  requiresTrailer = true → Job kann nur mit angekoppeltem Trailer
+--                           geladen/abgeliefert werden
+-- ────────────────────────────────────────────────────────────
+
+Config.TrailerModels        = {
+    semi         = { "trailers", "trailers2", "trailers3", "trailers4" },
+    flatbed      = { "flatbed", "baletrailer" },
+    tanker       = { "tanker", "tanker2" },
+    refrigerated = { "trailers3" },
+    -- kipper, garbage, heavyhaul haben keinen separaten Trailer
+}
+
+-- Welche vehicleTypes einen Trailer brauchen
+Config.RequiresTrailer      = {
+    semi         = true,
+    flatbed      = true,
+    tanker       = true,
+    refrigerated = true,
+    kipper       = false,
+    garbage      = false,
+    heavyhaul    = false,
+}

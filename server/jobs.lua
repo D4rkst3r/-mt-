@@ -210,6 +210,7 @@ local function OnJobRequest(data)
         deliveryZone = deliveryZone,
         distanceKm   = distKm,
         cargo        = jobCfg.cargo,
+        vehicleType  = jobCfg.vehicleType,
         multiStop    = jobCfg.multiStop,
         stopCount    = jobCfg.stopCount,
         blipColor    = jobCfg.blipColor,
@@ -245,15 +246,8 @@ local function OnCargoLoaded(data)
         job.cargoLoaded = true
     end
 
-    -- ox_inventory: Cargo ins Spieler-Inventory legen
-    -- Bei multiStop: pro Stop nur 1 Item, nicht cargo.amount (das ist der Gesamtbetrag)
-    local cargo     = job.jobConfig.cargo
-    local addAmount = job.jobConfig.multiStop and 1 or cargo.amount
-    exports.ox_inventory:AddItem(source, cargo.item, addAmount, {
-        jobKey    = job.jobKey,
-        sessionId = job.startTime,
-    })
-
+    -- Cargo-State lebt nur im activeJobs-Table auf dem Server.
+    -- Kein ox_inventory nötig – Trailer-System trackt den Zustand.
     TriggerClientEvent(MT.JOB_CARGO_LOADED, source, {
         cargoLoaded = job.cargoLoaded,
         stopsDone   = job.stopsDone,
@@ -288,15 +282,8 @@ local function OnJobComplete(data)
         return
     end
 
-    -- Cargo aus Inventory nehmen
-    local cargo = job.jobConfig.cargo
-    local removed = exports.ox_inventory:RemoveItem(source, cargo.item, cargo.amount)
-    if not removed then
-        TriggerClientEvent(MT.JOB_VALIDATE, source, {
-            error = "Cargo nicht im Inventory gefunden."
-        })
-        return
-    end
+    -- Cargo-Check: rein über Job-State (kein ox_inventory)
+    -- job.cargoLoaded wurde bereits oben geprüft
 
     -- Town Bonus für diese Zone erhöhen
     local wage, breakdown = CalcWage(source, job.jobKey, job)
@@ -337,11 +324,7 @@ local function OnJobCancel()
     local job = activeJobs[source]
     if not job then return end
 
-    -- Cargo entfernen falls schon geladen
-    if job.cargoLoaded then
-        local cargo = job.jobConfig.cargo
-        exports.ox_inventory:RemoveItem(source, cargo.item, cargo.amount)
-    end
+    -- Cargo-State wird mit dem Job verworfen (kein ox_inventory cleanup nötig)
 
     activeJobs[source] = nil
     TriggerClientEvent(MT.JOB_CANCEL, source, {})

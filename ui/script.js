@@ -256,3 +256,93 @@ window.addEventListener("message", (e) => {
     }
   }, 14);
 })();
+
+// ── Zone Editor ────────────────────────────────────────────
+(function zoneEditor() {
+  const panel = document.getElementById("zone-editor");
+  const keyEl = document.getElementById("ze-key");
+  const labelEl = document.getElementById("ze-label");
+  const sxEl = document.getElementById("ze-sx");
+  const syEl = document.getElementById("ze-sy");
+  const szEl = document.getElementById("ze-sz");
+  const rotEl = document.getElementById("ze-rot");
+  if (!panel) return;
+
+  function updateTrack(el) {
+    const pct =
+      (((el.value - el.min) / (el.max - el.min)) * 100).toFixed(1) + "%";
+    el.style.setProperty("--pct", pct);
+  }
+
+  function sendChange() {
+    fetch(`https://motortown/zoneEditorChange`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: labelEl.value,
+        sizeX: parseFloat(sxEl.value),
+        sizeY: parseFloat(syEl.value),
+        sizeZ: parseFloat(szEl.value),
+        rotation: parseInt(rotEl.value),
+      }),
+    });
+  }
+
+  function bindSlider(el, valId) {
+    el.addEventListener("input", () => {
+      document.getElementById(valId).textContent = el.value;
+      updateTrack(el);
+      sendChange();
+    });
+  }
+
+  bindSlider(sxEl, "ze-sx-val");
+  bindSlider(syEl, "ze-sy-val");
+  bindSlider(szEl, "ze-sz-val");
+  bindSlider(rotEl, "ze-rot-val");
+  labelEl.addEventListener("input", sendChange);
+
+  document.getElementById("ze-save").addEventListener("click", () => {
+    fetch(`https://motortown/zoneEditorSave`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: labelEl.value,
+        sizeX: parseFloat(sxEl.value),
+        sizeY: parseFloat(syEl.value),
+        sizeZ: parseFloat(szEl.value),
+        rotation: parseInt(rotEl.value),
+      }),
+    });
+    panel.classList.remove("visible");
+  });
+
+  document.getElementById("ze-cancel").addEventListener("click", () => {
+    fetch(`https://motortown/zoneEditorCancel`, { method: "POST" });
+    panel.classList.remove("visible");
+  });
+
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (!d) return;
+
+    if (d.action === "openZoneEditor") {
+      keyEl.textContent = d.key || "—";
+      labelEl.value = d.label || "";
+      sxEl.value = d.sizeX || 4;
+      syEl.value = d.sizeY || 4;
+      szEl.value = d.sizeZ || 2;
+      rotEl.value = d.rotation || 0;
+      document.getElementById("ze-sx-val").textContent = sxEl.value;
+      document.getElementById("ze-sy-val").textContent = syEl.value;
+      document.getElementById("ze-sz-val").textContent = szEl.value;
+      document.getElementById("ze-rot-val").textContent = rotEl.value;
+      [sxEl, syEl, szEl, rotEl].forEach(updateTrack);
+      panel.classList.add("visible");
+    }
+
+    if (d.action === "closeZoneEditor") {
+      panel.classList.remove("visible");
+    }
+  });
+})();

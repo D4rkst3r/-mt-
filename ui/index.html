@@ -140,6 +140,47 @@
 
     </div>
 
+
+    <!-- Zone Editor Panel -->
+    <div id="zone-editor">
+        <h2>Zone bearbeiten</h2>
+        <div class="ze-key" id="ze-key">—</div>
+
+        <div class="ze-field">
+            <label>Label</label>
+            <input type="text" id="ze-label" placeholder="Zone Label">
+        </div>
+
+        <div class="ze-divider"></div>
+
+        <div class="ze-size-row">
+            <div class="ze-field">
+                <label>Breite X <span id="ze-sx-val">4</span>m</label>
+                <input type="range" id="ze-sx" min="1" max="60" step="0.5" value="4">
+            </div>
+            <div class="ze-field">
+                <label>Tiefe Y <span id="ze-sy-val">4</span>m</label>
+                <input type="range" id="ze-sy" min="1" max="60" step="0.5" value="4">
+            </div>
+            <div class="ze-field">
+                <label>Höhe Z <span id="ze-sz-val">2</span>m</label>
+                <input type="range" id="ze-sz" min="1" max="20" step="0.5" value="2">
+            </div>
+        </div>
+
+        <div class="ze-divider"></div>
+
+        <div class="ze-field">
+            <label>Rotation <span id="ze-rot-val">0</span>°</label>
+            <input type="range" id="ze-rot" min="0" max="360" step="1" value="0">
+        </div>
+
+        <div class="ze-actions">
+            <button class="ze-btn ze-btn-cancel" id="ze-cancel">Abbrechen</button>
+            <button class="ze-btn ze-btn-save" id="ze-save">✓ Speichern</button>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 
