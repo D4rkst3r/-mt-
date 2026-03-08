@@ -606,14 +606,19 @@ local function GetNearbyOwnVehicles(garageCoords)
     return found
 end
 
+local function NormalizePlate(plate)
+    return plate and plate:gsub("%s+", ""):upper() or ""
+end
+
 local function DoStoreVehicle(vehicleData)
     pendingStorePlate = vehicleData.plate
     local fuel        = GetVehicleFuelLevel(vehicleData.entity)
     local mileage     = _HudModule and _HudModule.GetOdometer() or 0
     TriggerServerEvent(MT.VEHICLE_STORE, {
-        plate   = vehicleData.plate,
-        fuel    = Utils.Round(fuel, 0),
-        mileage = Utils.Round(mileage, 1),
+        plate     = NormalizePlate(vehicleData.plate),
+        vehicleId = vehicleData.id, -- falls vorhanden → Server nutzt ID statt Plate-Suche
+        fuel      = Utils.Round(fuel, 0),
+        mileage   = Utils.Round(mileage, 1),
     })
 end
 

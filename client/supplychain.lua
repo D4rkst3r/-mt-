@@ -1,53 +1,84 @@
 -- ============================================================
 --  client/supplychain.lua
---  Zeigt Fabrikstatus-UI (ox_lib) und reagiert auf
---  Stock-Updates vom Server.
---
---  Andere Module können via Event den aktuellen Stock
---  einer Fabrik abfragen.
+--  Fabrikstatus via eigenem NUI-Panel (factory-panel).
+--  Einzelne Fabrik-Zone öffnet Panel gefiltert auf diese Fabrik.
+--  "Alle Fabriken"-Übersicht zeigt alle auf einmal.
 -- ============================================================
 
 local SupplyChainModule = {}
 
--- Lokaler Cache der letzten bekannten Stocks
--- [factoryKey] = { inputStock, outputStock, label, ... }
-local localStocks = {}
+-- Lokaler Cache [factoryKey] = { inputStock, outputStock, ... }
+local localStocks       = {}
+local nuiOpen           = false
 
 -- ────────────────────────────────────────────────────────────
---  Fabrik-Status UI (ox_lib alertDialog als Statusanzeige)
+--  Hilfsfunktion: Prozent-Wert berechnen
 -- ────────────────────────────────────────────────────────────
 
-local function ShowFactoryStatus(data)
-    -- Progress-Balken als ASCII (ox_lib markdown)
-    local function Bar(pct)
-        local filled = math.floor((pct / 100) * 10)
-        local empty  = 10 - filled
-        return ("▓"):rep(filled) .. ("░"):rep(empty) .. (" %d%%"):format(pct)
-    end
-
-    -- Dringlichkeits-Farbe
-    local inputColor  = data.inputPct < 20 and "🔴" or (data.inputPct < 50 and "🟡" or "🟢")
-    local outputColor = data.outputPct < 20 and "🔴" or (data.outputPct < 50 and "🟡" or "🟢")
-
-    lib.alertDialog({
-        header   = ("🏭 %s"):format(data.label),
-        content  = table.concat({
-            ("**Input:**  %s `%s`  (%d/%d)"):format(
-                inputColor, Bar(data.inputPct),
-                data.inputStock, data.maxInput),
-            ("**Output:** %s `%s`  (%d/%d)"):format(
-                outputColor, Bar(data.outputPct),
-                data.outputStock, data.maxOutput),
-            "",
-            ("_Angeliefert wird: **%s**_"):format(data.inputItem),
-            ("_Produziert wird:  **%s**_"):format(data.outputItem),
-        }, "\n"),
-        centered = true,
-    })
+local function Pct(stock, max)
+    if not max or max == 0 then return 0 end
+    return math.floor((stock / max) * 100)
 end
 
 -- ────────────────────────────────────────────────────────────
---  Event Handler
+--  NUI: alle Fabriken anzeigen
+-- ────────────────────────────────────────────────────────────
+
+local function BuildFactoryList(filterKey)
+    local list = {}
+    for key, cfg in pairs(Config.Factories or {}) do
+        if not filterKey or key == filterKey then
+            local s           = localStocks[key] or {}
+            local inputStock  = s.inputStock or 0
+            local outputStock = s.outputStock or 0
+            local maxIn       = cfg.maxInputStock or 1
+            local maxOut      = cfg.maxOutputStock or 1
+
+            table.insert(list, {
+                key         = key,
+                label       = cfg.label,
+                inputItem   = cfg.input and cfg.input.item or "?",
+                outputItem  = cfg.output and cfg.output.item or "?",
+                inputStock  = inputStock,
+                outputStock = outputStock,
+                maxInput    = maxIn,
+                maxOutput   = maxOut,
+                inputPct    = Pct(inputStock, maxIn),
+                outputPct   = Pct(outputStock, maxOut),
+            })
+        end
+    end
+    -- Alphabetisch sortieren
+    table.sort(list, function(a, b) return a.label < b.label end)
+    return list
+end
+
+local function OpenFactoryPanel(filterKey)
+    SendNUIMessage({
+        action    = "factoryOpen",
+        factories = BuildFactoryList(filterKey),
+    })
+    SetNuiFocus(true, true)
+    nuiOpen = true
+end
+
+local function CloseFactoryPanel()
+    SendNUIMessage({ action = "factoryClose" })
+    SetNuiFocus(false, false)
+    nuiOpen = false
+end
+
+-- ────────────────────────────────────────────────────────────
+--  NUI Callbacks
+-- ────────────────────────────────────────────────────────────
+
+RegisterNUICallback("factoryClose", function(_, cb)
+    CloseFactoryPanel()
+    cb("ok")
+end)
+
+-- ────────────────────────────────────────────────────────────
+--  Event Handler (Server → Client)
 -- ────────────────────────────────────────────────────────────
 
 -- Server schickt Batch-Updates (Array von Änderungen)
@@ -57,38 +88,74 @@ local function OnSupplyUpdate(updates)
     for _, update in ipairs(updates) do
         localStocks[update.key] = update
 
-        -- Dringend-Warnung: leerer Stock meldet sich per Notify
+        -- Dringend-Warnung
         if update.urgent then
             lib.notify({
                 title       = "⚠️ Lieferengpass",
-                description = ("Fabrik '%s' hat keinen Output-Stock mehr! Lieferjobs verfügbar."):format(
+                description = ("**%s** hat keinen Output-Stock mehr! Neue Lieferjobs verfügbar."):format(
                     update.label or update.key),
                 type        = "warning",
                 duration    = 10000,
             })
         end
+
+        -- Wenn Panel offen: Live-Update schicken
+        if nuiOpen then
+            local cfg = Config.Factories and Config.Factories[update.key]
+            if cfg then
+                SendNUIMessage({
+                    action  = "factoryUpdate",
+                    factory = {
+                        key         = update.key,
+                        inputStock  = update.inputStock or 0,
+                        outputStock = update.outputStock or 0,
+                        maxInput    = cfg.maxInputStock or 1,
+                        maxOutput   = cfg.maxOutputStock or 1,
+                        inputPct    = Pct(update.inputStock or 0, cfg.maxInputStock or 1),
+                        outputPct   = Pct(update.outputStock or 0, cfg.maxOutputStock or 1),
+                    },
+                })
+            end
+        end
     end
 
-    -- HUD-Modul informieren (zeigt ggf. Fabrik-Indikator)
     TriggerEvent("mt:supply:localUpdate", localStocks)
 end
 
--- Server antwortet auf Status-Request
+-- Server antwortet auf Status-Request einer einzelnen Fabrik
 local function OnFactoryStatus(data)
     if not data then return end
-    localStocks[data.factoryKey] = data
-    ShowFactoryStatus(data)
+    localStocks[data.factoryKey or data.key] = data
+    -- Panel mit dieser Fabrik öffnen
+    OpenFactoryPanel(data.factoryKey or data.key)
 end
 
--- Spieler öffnet Fabrik-Menü via ox_target
+-- Zone-Target: Fabrik-Zone betreten → Status anfordern
 local function OnOpenFactory(zoneName, zoneData)
     local factoryKey = zoneData and zoneData.factoryKey
     if not factoryKey then
         lib.notify({ title = "Keine Fabrik", type = "error" })
         return
     end
-    -- Status beim Server anfragen
+    -- Falls schon im Cache: sofort öffnen, dann beim Server aktualisieren
+    if localStocks[factoryKey] then
+        OpenFactoryPanel(factoryKey)
+    end
     TriggerServerEvent("mt:supply:statusRequest", factoryKey)
+end
+
+-- Event für "Alle Fabriken" Übersicht (z.B. von einer Zentralzone)
+local function OnOpenAllFactories()
+    TriggerServerEvent("mt:supply:allStatusRequest")
+end
+
+-- Server schickt alle Fabriken auf einmal
+local function OnAllFactoryStatus(dataList)
+    if not dataList then return end
+    for _, d in ipairs(dataList) do
+        if d.key then localStocks[d.key] = d end
+    end
+    OpenFactoryPanel(nil) -- alle anzeigen
 end
 
 -- ────────────────────────────────────────────────────────────
@@ -110,8 +177,10 @@ end
 function SupplyChainModule.Init()
     RegisterNetEvent("mt:supply:stockUpdate", OnSupplyUpdate)
     RegisterNetEvent("mt:supply:factoryStatus", OnFactoryStatus)
+    RegisterNetEvent("mt:supply:allStatus", OnAllFactoryStatus)
 
     AddEventHandler("mt:supply:openFactory", OnOpenFactory)
+    AddEventHandler("mt:supply:openAll", OnOpenAllFactories)
 
     exports("GetLocalStock", SupplyChainModule.GetLocalStock)
     exports("GetAllLocalStocks", SupplyChainModule.GetAllLocalStocks)

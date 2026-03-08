@@ -248,6 +248,30 @@ function SupplyChainModule.Init()
 
     RegisterNetEvent("mt:supply:statusRequest", OnFactoryStatusRequest)
 
+    -- Alle Fabriken auf einmal senden (für Übersichts-Panel)
+    RegisterNetEvent("mt:supply:allStatusRequest", function()
+        local src  = source
+        local list = {}
+        for key, factory in pairs(Config.Factories) do
+            local stock = stocks[key]
+            if stock then
+                table.insert(list, {
+                    key         = key,
+                    label       = factory.label,
+                    inputItem   = factory.input.item,
+                    outputItem  = factory.output.item,
+                    inputStock  = stock.inputStock,
+                    outputStock = stock.outputStock,
+                    maxInput    = factory.maxInputStock,
+                    maxOutput   = factory.maxOutputStock,
+                    inputPct    = Utils.Round(stock.inputStock / factory.maxInputStock * 100, 0),
+                    outputPct   = Utils.Round(stock.outputStock / factory.maxOutputStock * 100, 0),
+                })
+            end
+        end
+        TriggerClientEvent("mt:supply:allStatus", src, list)
+    end)
+
     exports("GetStock", SupplyChainModule.GetStock)
     exports("GetAllStocks", SupplyChainModule.GetAllStocks)
 

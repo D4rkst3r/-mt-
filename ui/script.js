@@ -1428,3 +1428,387 @@ window.addEventListener("message", (e) => {
     }
   });
 })();
+
+// ════════════════════════════════════════════════════════
+//  COMPANY PANEL
+// ════════════════════════════════════════════════════════
+(function () {
+  const panel = document.getElementById("company-panel");
+  const overlay = panel.querySelector(".cp-overlay");
+  const closeBtn = document.getElementById("cp-close");
+  const tabs = panel.querySelectorAll(".cp-tab");
+  const panes = panel.querySelectorAll(".cp-pane");
+
+  let currentData = null;
+
+  // ── Helpers ─────────────────────────────────────────
+  function fmt(n) {
+    return "$" + Math.abs(n).toLocaleString("de-DE");
+  }
+  function roleLabel(role) {
+    return role === "owner"
+      ? "OWNER"
+      : role === "manager"
+        ? "MANAGER"
+        : "FAHRER";
+  }
+  function roleCls(role) {
+    return role === "owner" ? "" : role === "manager" ? "manager" : "driver";
+  }
+
+  // ── Tab switching ────────────────────────────────────
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      if (tab.classList.contains("hidden")) return;
+      tabs.forEach((t) => t.classList.remove("active"));
+      panes.forEach((p) => p.classList.remove("active"));
+      tab.classList.add("active");
+      document
+        .getElementById("cp-pane-" + tab.dataset.tab)
+        ?.classList.add("active");
+    });
+  });
+
+  // ── Close ────────────────────────────────────────────
+  function closePanel() {
+    panel.classList.add("hidden");
+    fetch("https://motortown/companyClose", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+  closeBtn.addEventListener("click", closePanel);
+  overlay.addEventListener("click", closePanel);
+
+  // ── Render: Overview ─────────────────────────────────
+  function renderOverview(data) {
+    const noComp = document.getElementById("cp-no-company");
+    const statsGrid = panel.querySelector(".cp-stats-grid");
+
+    if (!data.membership) {
+      statsGrid.classList.add("hidden");
+      noComp.classList.remove("hidden");
+      return;
+    }
+    statsGrid.classList.remove("hidden");
+    noComp.classList.add("hidden");
+
+    const activeRoutes = (data.routes || []).filter(
+      (r) => r.active === 1,
+    ).length;
+    document.getElementById("cp-balance").textContent = fmt(
+      data.company.balance,
+    );
+    document.getElementById("cp-members-count").textContent =
+      data.members?.length || 0;
+    document.getElementById("cp-routes-count").textContent = activeRoutes;
+    document.getElementById("cp-reputation").textContent =
+      data.company.reputation || 0;
+  }
+
+  // ── Render: Members ──────────────────────────────────
+  function renderMembers(data) {
+    const list = document.getElementById("cp-members-list");
+    list.innerHTML = "";
+    if (!data.members || data.members.length === 0) {
+      list.innerHTML =
+        '<div style="color:rgba(255,255,255,0.3);font-size:13px;text-align:center;padding:20px">Keine Mitglieder</div>';
+      return;
+    }
+    const myRole = data.membership?.role;
+    data.members.forEach((m) => {
+      const canManage = myRole !== "driver" && m.role !== "owner";
+      const item = document.createElement("div");
+      item.className = "cp-list-item";
+      item.innerHTML = `
+                <div class="cp-list-icon">👤</div>
+                <div class="cp-list-info">
+                    <div class="cp-list-name">${m.name}</div>
+                    <div class="cp-list-sub">${roleLabel(m.role)}</div>
+                </div>
+                <div class="cp-list-actions">
+                    ${canManage && m.role === "driver" ? `<button class="cp-btn cp-btn-icon" data-action="promote" data-id="${m.identifier}">↑ Befördern</button>` : ""}
+                    ${canManage ? `<button class="cp-btn cp-btn-icon danger" data-action="kick" data-id="${m.identifier}">Raus</button>` : ""}
+                </div>`;
+      list.appendChild(item);
+    });
+
+    list.querySelectorAll("[data-action]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        fetch("https://motortown/companyAction", {
+          method: "POST",
+          body: JSON.stringify({
+            action: btn.dataset.action,
+            identifier: btn.dataset.id,
+          }),
+        });
+      });
+    });
+  }
+
+  // ── Render: Routes ───────────────────────────────────
+  function renderRoutes(data) {
+    const list = document.getElementById("cp-routes-list");
+    const addBtn = document.getElementById("cp-route-add-btn");
+    const myRole = data.membership?.role;
+    list.innerHTML = "";
+
+    if (!data.routes || data.routes.length === 0) {
+      list.innerHTML =
+        '<div style="color:rgba(255,255,255,0.3);font-size:13px;text-align:center;padding:16px">Keine Routen vorhanden</div>';
+    } else {
+      data.routes.forEach((r) => {
+        const isActive = r.active === 1;
+        const item = document.createElement("div");
+        item.className = "cp-list-item";
+        item.innerHTML = `
+                    <div class="cp-route-dot ${isActive ? "active" : "paused"}"></div>
+                    <div class="cp-list-info">
+                        <div class="cp-list-name">${r.jobLabel || r.route_type}</div>
+                        <div class="cp-list-sub">${r.plate ? (r.model || "?") + " · " + r.plate : "Kein Fahrzeug"}</div>
+                    </div>
+                    <div class="cp-list-actions">
+                        ${myRole !== "driver" ? `<button class="cp-btn cp-btn-icon" data-action="toggle" data-id="${r.id}">${isActive ? "⏸ Pause" : "▶ Start"}</button>` : ""}
+                    </div>`;
+        list.appendChild(item);
+      });
+      list.querySelectorAll('[data-action="toggle"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+          fetch("https://motortown/companyAction", {
+            method: "POST",
+            body: JSON.stringify({
+              action: "toggle_route",
+              routeId: parseInt(btn.dataset.id),
+            }),
+          });
+        });
+      });
+    }
+    addBtn.style.display = myRole !== "driver" ? "" : "none";
+  }
+
+  // ── Route form ───────────────────────────────────────
+  document.getElementById("cp-route-add-btn").addEventListener("click", () => {
+    document.getElementById("cp-route-form").classList.remove("hidden");
+    document.getElementById("cp-route-add-btn").style.display = "none";
+  });
+  document.getElementById("cp-route-cancel").addEventListener("click", () => {
+    document.getElementById("cp-route-form").classList.add("hidden");
+    document.getElementById("cp-route-add-btn").style.display = "";
+  });
+  document.getElementById("cp-route-create").addEventListener("click", () => {
+    const type = document.getElementById("cp-route-type").value;
+    const vehId = parseInt(document.getElementById("cp-route-vehicle").value);
+    if (!type || !vehId) return;
+    fetch("https://motortown/companyAction", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "create_route",
+        routeType: type,
+        vehicleId: vehId,
+      }),
+    });
+    document.getElementById("cp-route-form").classList.add("hidden");
+  });
+
+  // ── Finance ──────────────────────────────────────────
+  document.getElementById("cp-deposit-btn").addEventListener("click", () => {
+    const amt = parseFloat(document.getElementById("cp-deposit-amount").value);
+    if (!amt || amt <= 0) return;
+    fetch("https://motortown/companyAction", {
+      method: "POST",
+      body: JSON.stringify({ action: "deposit", amount: amt }),
+    });
+    document.getElementById("cp-deposit-amount").value = "";
+  });
+  document.getElementById("cp-withdraw-btn").addEventListener("click", () => {
+    const amt = parseFloat(document.getElementById("cp-withdraw-amount").value);
+    if (!amt || amt <= 0) return;
+    fetch("https://motortown/companyAction", {
+      method: "POST",
+      body: JSON.stringify({ action: "withdraw", amount: amt }),
+    });
+    document.getElementById("cp-withdraw-amount").value = "";
+  });
+
+  // ── Found company ────────────────────────────────────
+  document.getElementById("cp-found-btn").addEventListener("click", () => {
+    const name = document.getElementById("cp-found-name").value.trim();
+    if (!name) return;
+    fetch("https://motortown/companyAction", {
+      method: "POST",
+      body: JSON.stringify({ action: "found", name }),
+    });
+  });
+
+  // ── Open panel ───────────────────────────────────────
+  function openPanel(data) {
+    currentData = data;
+
+    // Header
+    document.getElementById("cp-name").textContent =
+      data.company?.name || "Neue Firma";
+    const badge = document.getElementById("cp-role");
+    badge.textContent = roleLabel(data.membership?.role);
+    badge.className = "cp-role-badge " + roleCls(data.membership?.role);
+
+    // Tab visibility
+    const canManage = data.membership && data.membership.role !== "driver";
+    const isOwner = data.membership?.role === "owner";
+    document
+      .getElementById("cp-tab-members")
+      .classList.toggle("hidden", !canManage);
+    document.getElementById("cp-tab-routes").classList.toggle("hidden", false);
+    document
+      .getElementById("cp-tab-finance")
+      .classList.toggle("hidden", !isOwner);
+
+    // Reset to overview tab
+    tabs.forEach((t) => t.classList.remove("active"));
+    panes.forEach((p) => p.classList.remove("active"));
+    panel.querySelector('[data-tab="overview"]').classList.add("active");
+    document.getElementById("cp-pane-overview").classList.add("active");
+
+    // Populate route type select
+    const sel = document.getElementById("cp-route-type");
+    sel.innerHTML = "";
+    if (data.jobs) {
+      data.jobs.forEach((j) => {
+        const opt = document.createElement("option");
+        opt.value = j.key;
+        opt.textContent = j.label;
+        sel.appendChild(opt);
+      });
+    }
+
+    // Finance balance
+    document.getElementById("cp-finance-balance").textContent = fmt(
+      data.company?.balance || 0,
+    );
+
+    // Render all panes
+    renderOverview(data);
+    renderMembers(data);
+    renderRoutes(data);
+
+    panel.classList.remove("hidden");
+  }
+
+  // ── Update balance live ──────────────────────────────
+  function updateBalance(balance) {
+    document.getElementById("cp-balance").textContent = fmt(balance);
+    document.getElementById("cp-finance-balance").textContent = fmt(balance);
+    if (currentData?.company) currentData.company.balance = balance;
+  }
+
+  // ── Message listener ─────────────────────────────────
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (d.action === "companyOpen") openPanel(d.data);
+    if (d.action === "companyClose") panel.classList.add("hidden");
+    if (d.action === "companyRefresh") {
+      if (d.data) openPanel(d.data);
+    }
+    if (d.action === "companyBalance") updateBalance(d.balance);
+  });
+})();
+
+// ════════════════════════════════════════════════════════
+//  FACTORY STATUS PANEL
+// ════════════════════════════════════════════════════════
+(function () {
+  const panel = document.getElementById("factory-panel");
+  const list = document.getElementById("fp-list");
+  const closeBtn = document.getElementById("fp-close");
+
+  closeBtn.addEventListener("click", () => {
+    panel.classList.add("hidden");
+    fetch("https://motortown/factoryClose", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  });
+
+  function barClass(pct, type) {
+    if (pct < 20) return "crit";
+    if (pct < 45) return "warn";
+    return type;
+  }
+  function statusClass(inputPct, outputPct) {
+    if (inputPct < 20 || outputPct < 20) return "crit";
+    if (inputPct < 45 || outputPct < 45) return "warn";
+    return "ok";
+  }
+
+  function renderFactories(factories) {
+    list.innerHTML = "";
+    if (!factories || factories.length === 0) {
+      list.innerHTML =
+        '<div style="color:rgba(255,255,255,0.3);font-size:12px;text-align:center;padding:20px">Keine Fabrikdaten</div>';
+      return;
+    }
+    factories.forEach((f) => {
+      const sCls = statusClass(f.inputPct, f.outputPct);
+      const div = document.createElement("div");
+      div.className = "fp-factory";
+      div.dataset.key = f.key;
+      div.innerHTML = `
+                <div class="fp-factory-name">
+                    <div class="fp-factory-status ${sCls}"></div>
+                    ${f.label}
+                </div>
+                <div class="fp-stock">
+                    <div class="fp-stock-header">
+                        <span class="fp-stock-label">⬇ Input · ${f.inputItem}</span>
+                        <span class="fp-stock-val">${f.inputStock}/${f.maxInput}</span>
+                    </div>
+                    <div class="fp-bar-track">
+                        <div class="fp-bar-fill input ${barClass(f.inputPct, "input")}"
+                             style="width:${f.inputPct}%"></div>
+                    </div>
+                </div>
+                <div class="fp-stock">
+                    <div class="fp-stock-header">
+                        <span class="fp-stock-label">⬆ Output · ${f.outputItem}</span>
+                        <span class="fp-stock-val">${f.outputStock}/${f.maxOutput}</span>
+                    </div>
+                    <div class="fp-bar-track">
+                        <div class="fp-bar-fill output ${barClass(f.outputPct, "output")}"
+                             style="width:${f.outputPct}%"></div>
+                    </div>
+                </div>`;
+      list.appendChild(div);
+    });
+  }
+
+  function updateFactory(f) {
+    const div = list.querySelector(`[data-key="${f.key}"]`);
+    if (!div) {
+      return;
+    } // wird beim nächsten open() neu gebaut
+
+    const fills = div.querySelectorAll(".fp-bar-fill");
+    const vals = div.querySelectorAll(".fp-stock-val");
+    const statusDot = div.querySelector(".fp-factory-status");
+
+    fills[0].style.width = f.inputPct + "%";
+    fills[0].className = "fp-bar-fill input " + barClass(f.inputPct, "input");
+    fills[1].style.width = f.outputPct + "%";
+    fills[1].className =
+      "fp-bar-fill output " + barClass(f.outputPct, "output");
+    vals[0].textContent = `${f.inputStock}/${f.maxInput}`;
+    vals[1].textContent = `${f.outputStock}/${f.maxOutput}`;
+    statusDot.className =
+      "fp-factory-status " + statusClass(f.inputPct, f.outputPct);
+  }
+
+  window.addEventListener("message", (e) => {
+    const d = e.data;
+    if (d.action === "factoryOpen") {
+      renderFactories(d.factories);
+      panel.classList.remove("hidden");
+    }
+    if (d.action === "factoryClose") panel.classList.add("hidden");
+    if (d.action === "factoryUpdate") updateFactory(d.factory);
+  });
+})();

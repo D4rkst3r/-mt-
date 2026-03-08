@@ -169,29 +169,63 @@ local function OnVehicleStore(data)
     local playerData = _PlayerModule.GetData(source)
     if not playerData then return end
 
-    -- Sicherheit: Fahrzeug muss dem Spieler gehören
-    MySQL.scalar(
-        "SELECT id FROM mt_vehicles WHERE plate = ? AND identifier = ?",
-        { data.plate, playerData.identifier },
-        function(vehicleId)
-            if not vehicleId then
-                TriggerClientEvent("mt:vehicle:storeResult", source, {
-                    success = false, error = "Fahrzeug gehört dir nicht."
-                })
-                return
-            end
+    -- Plate normalisieren (Leerzeichen und Groß/Kleinschreibung angleichen)
+    local plate = data.plate:gsub("%s+", ""):upper()
 
-            MySQL.update(
-                "UPDATE mt_vehicles SET `stored` = 1, fuel = ?, mileage = ? WHERE id = ?",
-                { data.fuel or 100, data.mileage or 0, vehicleId },
-                function()
-                    TriggerClientEvent("mt:vehicle:storeResult", source, {
-                        success = true, plate = data.plate
-                    })
+    local function doStore(vehicleId)
+        MySQL.update(
+            "UPDATE mt_vehicles SET `stored` = 1, fuel = ?, mileage = ? WHERE id = ?",
+            { data.fuel or 100, data.mileage or 0, vehicleId },
+            function()
+                TriggerClientEvent("mt:vehicle:storeResult", source, {
+                    success = true, plate = plate
+                })
+            end
+        )
+    end
+
+    -- Wenn Client vehicleId mitschickt → direkt nutzen (zuverlässiger als Plate-Suche)
+    if data.vehicleId then
+        MySQL.scalar(
+            "SELECT id FROM mt_vehicles WHERE id = ? AND identifier = ?",
+            { data.vehicleId, playerData.identifier },
+            function(vehicleId)
+                if not vehicleId then
+                    -- Fallback auf Plate-Suche
+                    MySQL.scalar(
+                        "SELECT id FROM mt_vehicles WHERE REPLACE(plate,' ','') = ? AND identifier = ?",
+                        { plate, playerData.identifier },
+                        function(vid)
+                            if not vid then
+                                TriggerClientEvent("mt:vehicle:storeResult", source, {
+                                    success = false, error = "Fahrzeug gehört dir nicht."
+                                })
+                                return
+                            end
+                            doStore(vid)
+                        end
+                    )
+                    return
                 end
-            )
-        end
-    )
+                doStore(vehicleId)
+            end
+        )
+    else
+        -- Kein vehicleId → Plate-Suche mit normalisiertem Plate
+        MySQL.scalar(
+            "SELECT id FROM mt_vehicles WHERE REPLACE(plate,' ','') = ? AND identifier = ?",
+            { plate, playerData.identifier },
+            function(vehicleId)
+                if not vehicleId then
+                    TriggerClientEvent("mt:vehicle:storeResult", source, {
+                        success = false, error = "Fahrzeug gehört dir nicht."
+                    })
+                    return
+                end
+                doStore(vehicleId)
+            end
+        )
+    end
 end
 
 -- ────────────────────────────────────────────────────────────

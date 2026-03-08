@@ -68,9 +68,11 @@ end
 --  Config-Loader (beim Start: DB-Overrides über Lua-Config)
 -- ────────────────────────────────────────────────────────────
 
-local function LoadConfigOverrides(cb)
-    MySQL.rawExecute.await("SELECT * FROM mt_config WHERE deleted = 0", {})
+-- Merkt sich welche Keys aus der DB kommen (für Broadcast an neue Clients)
+local dbOverrideZones = {} -- [key] = zoneData (plain table, kein vec3)
+local dbDeletedZones  = {} -- [key] = true
 
+local function LoadConfigOverrides(cb)
     MySQL.query("SELECT * FROM mt_config", {}, function(rows)
         if not rows then
             cb()
@@ -86,9 +88,11 @@ local function LoadConfigOverrides(cb)
             local data = DecodeJSON(row.data)
             if data then
                 if row.deleted == 1 then
-                    -- Gelöschte Einträge aus Config entfernen
                     if row.category == "zone" then
-                        Config.Zones[row.key] = nil; zoneChanges = zoneChanges + 1
+                        Config.Zones[row.key]    = nil
+                        dbDeletedZones[row.key]  = true
+                        dbOverrideZones[row.key] = nil
+                        zoneChanges              = zoneChanges + 1
                     end
                     if row.category == "job" then
                         Config.Jobs[row.key] = nil; jobChanges = jobChanges + 1
@@ -100,9 +104,19 @@ local function LoadConfigOverrides(cb)
                         Config.Factories[row.key] = nil; factoryChanges = factoryChanges + 1
                     end
                 else
-                    -- Override oder neuer Eintrag
                     if row.category == "zone" then
-                        Config.Zones[row.key] = data; zoneChanges = zoneChanges + 1
+                        -- Server-seitig: coords als vec3 setzen
+                        local zd = data
+                        if zd.coords and type(zd.coords) == "table" then
+                            zd.coords = vec3(zd.coords.x, zd.coords.y, zd.coords.z)
+                        end
+                        if zd.size and type(zd.size) == "table" then
+                            zd.size = vec3(zd.size.x, zd.size.y, zd.size.z)
+                        end
+                        Config.Zones[row.key]    = zd
+                        dbOverrideZones[row.key] = data -- original JSON-Table für Client-Broadcast
+                        dbDeletedZones[row.key]  = nil
+                        zoneChanges              = zoneChanges + 1
                     end
                     if row.category == "job" then
                         Config.Jobs[row.key] = data; jobChanges = jobChanges + 1
@@ -121,6 +135,23 @@ local function LoadConfigOverrides(cb)
             :format(zoneChanges, jobChanges, vehicleChanges, factoryChanges))
         cb()
     end)
+end
+
+-- Schickt alle DB-Overrides an einen einzelnen Client (z.B. neu verbundener Spieler)
+local function SendOverridesToClient(source)
+    for key, zoneData in pairs(dbOverrideZones) do
+        TriggerClientEvent("mt:admin:zoneUpdate", source, {
+            key     = key,
+            data    = zoneData,
+            deleted = false,
+        })
+    end
+    for key in pairs(dbDeletedZones) do
+        TriggerClientEvent("mt:admin:zoneUpdate", source, {
+            key     = key,
+            deleted = true,
+        })
+    end
 end
 
 -- ────────────────────────────────────────────────────────────
@@ -361,7 +392,21 @@ function AdminModule.Init(cb)
 
         -- 2. Config-Overrides aus DB laden, dann Callback
         LoadConfigOverrides(function()
+            -- 3. Alle bereits verbundenen Clients mit DB-Overrides versorgen
+            local players = GetPlayers()
+            for _, src in ipairs(players) do
+                SendOverridesToClient(tonumber(src))
+            end
             cb()
+        end)
+    end)
+
+    -- Neu verbindende Spieler bekommen die DB-Overrides sobald sie geladen sind
+    AddEventHandler("mt:player:requestLoad", function()
+        local src = source
+        -- Kleines Delay damit der Client RegisterNetEvent schon ausgeführt hat
+        SetTimeout(2000, function()
+            SendOverridesToClient(src)
         end)
     end)
 

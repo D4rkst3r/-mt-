@@ -221,7 +221,121 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
-</body>
+    <!-- ═══════════════════════════════════════════
+         COMPANY PANEL
+    ════════════════════════════════════════════ -->
+    <div id="company-panel" class="hidden">
+        <div class="cp-overlay"></div>
+        <div class="cp-card">
 
-</html>
+            <!-- Header -->
+            <div class="cp-header">
+                <div class="cp-logo">MT</div>
+                <div class="cp-title-wrap">
+                    <div class="cp-company-name" id="cp-name">—</div>
+                    <div class="cp-role-badge" id="cp-role">FAHRER</div>
+                </div>
+                <button class="cp-close" id="cp-close">✕</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="cp-tabs" id="cp-tabs">
+                <button class="cp-tab active" data-tab="overview">Übersicht</button>
+                <button class="cp-tab" data-tab="members" id="cp-tab-members">Mitglieder</button>
+                <button class="cp-tab" data-tab="routes" id="cp-tab-routes">Routen</button>
+                <button class="cp-tab" data-tab="finance" id="cp-tab-finance">Kasse</button>
+            </div>
+
+            <!-- Content -->
+            <div class="cp-content">
+
+                <!-- Tab: Übersicht -->
+                <div class="cp-pane active" id="cp-pane-overview">
+                    <div class="cp-stats-grid">
+                        <div class="cp-stat">
+                            <div class="cp-stat-val" id="cp-balance">$0</div>
+                            <div class="cp-stat-lbl">Kontostand</div>
+                        </div>
+                        <div class="cp-stat">
+                            <div class="cp-stat-val" id="cp-members-count">0</div>
+                            <div class="cp-stat-lbl">Mitglieder</div>
+                        </div>
+                        <div class="cp-stat">
+                            <div class="cp-stat-val" id="cp-routes-count">0</div>
+                            <div class="cp-stat-lbl">Aktive Routen</div>
+                        </div>
+                        <div class="cp-stat">
+                            <div class="cp-stat-val" id="cp-reputation">0</div>
+                            <div class="cp-stat-lbl">Reputation</div>
+                        </div>
+                    </div>
+                    <!-- Kein Mitglied: Firma gründen -->
+                    <div id="cp-no-company" class="hidden">
+                        <div class="cp-empty-msg">Du bist noch kein Mitglied einer Firma.</div>
+                        <div class="cp-found-form">
+                            <input type="text" id="cp-found-name" class="cp-input" placeholder="Firmenname eingeben…"
+                                maxlength="40">
+                            <button class="cp-btn cp-btn-primary" id="cp-found-btn">
+                                Firma gründen — <span id="cp-found-cost">$50.000</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: Mitglieder -->
+                <div class="cp-pane" id="cp-pane-members">
+                    <div class="cp-list" id="cp-members-list"></div>
+                </div>
+
+                <!-- Tab: Routen -->
+                <div class="cp-pane" id="cp-pane-routes">
+                    <div class="cp-list" id="cp-routes-list"></div>
+                    <div class="cp-route-form hidden" id="cp-route-form">
+                        <div class="cp-form-title">Neue Route</div>
+                        <select class="cp-input cp-select" id="cp-route-type"></select>
+                        <input type="number" class="cp-input" id="cp-route-vehicle" placeholder="Fahrzeug-ID">
+                        <div class="cp-form-actions">
+                            <button class="cp-btn cp-btn-ghost" id="cp-route-cancel">Abbrechen</button>
+                            <button class="cp-btn cp-btn-primary" id="cp-route-create">Erstellen</button>
+                        </div>
+                    </div>
+                    <button class="cp-btn cp-btn-ghost cp-add-btn" id="cp-route-add-btn">+ Neue Route</button>
+                </div>
+
+                <!-- Tab: Kasse -->
+                <div class="cp-pane" id="cp-pane-finance">
+                    <div class="cp-finance-balance">
+                        <div class="cp-finance-lbl">Aktueller Kontostand</div>
+                        <div class="cp-finance-val" id="cp-finance-balance">$0</div>
+                    </div>
+                    <div class="cp-finance-row">
+                        <div class="cp-finance-block">
+                            <div class="cp-finance-lbl">Einzahlen</div>
+                            <input type="number" class="cp-input" id="cp-deposit-amount" placeholder="Betrag ($)">
+                            <button class="cp-btn cp-btn-primary" id="cp-deposit-btn">Einzahlen</button>
+                        </div>
+                        <div class="cp-finance-divider"></div>
+                        <div class="cp-finance-block">
+                            <div class="cp-finance-lbl">Auszahlen</div>
+                            <input type="number" class="cp-input" id="cp-withdraw-amount" placeholder="Betrag ($)">
+                            <button class="cp-btn cp-btn-danger" id="cp-withdraw-btn">Auszahlen</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         FACTORY STATUS PANEL
+    ════════════════════════════════════════════ -->
+    <div id="factory-panel" class="hidden">
+        <div class="fp-header">
+            <span class="fp-title">🏭 Fabriken</span>
+            <button class="fp-close" id="fp-close">✕</button>
+        </div>
+        <div class="fp-list" id="fp-list"></div>
+    </div>
+
+    <script src="script.js"></script>
