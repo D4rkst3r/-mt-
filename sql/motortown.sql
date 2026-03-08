@@ -116,3 +116,31 @@ CREATE TABLE IF NOT EXISTS `mt_town_bonus` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;
+-- ------------------------------------------------------------
+--  Admin-Ranks
+--  Eintrag via Konsole: mt_addadmin <identifier> <rank>
+--  rank: 'admin' | 'superadmin'
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mt_admins` (
+    `identifier` VARCHAR(60)                    NOT NULL,
+    `rank`       ENUM('admin','superadmin')      NOT NULL DEFAULT 'admin',
+    `added_by`   VARCHAR(60)                    NOT NULL DEFAULT 'console',
+    `added_at`   TIMESTAMP                      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`identifier`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ------------------------------------------------------------
+--  Config-Overrides (überschreiben Lua-Config nach Neustart)
+--  category: 'zone' | 'job' | 'vehicle' | 'factory'
+--  deleted = 1 bedeutet: Zone/Job wurde ingame gelöscht
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `mt_config` (
+    `category`   VARCHAR(20)  NOT NULL,
+    `key`        VARCHAR(60)  NOT NULL,
+    `data`       JSON         NOT NULL,
+    `deleted`    TINYINT(1)   NOT NULL DEFAULT 0,
+    `updated_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                              ON UPDATE CURRENT_TIMESTAMP,
+    `updated_by` VARCHAR(60)  NOT NULL DEFAULT 'system',
+    PRIMARY KEY (`category`, `key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

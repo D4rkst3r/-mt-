@@ -246,17 +246,19 @@ local function OnCargoLoaded(data)
     end
 
     -- ox_inventory: Cargo ins Spieler-Inventory legen
-    -- (ox_inventory läuft server-seitig)
-    local cargo = job.jobConfig.cargo
-    exports.ox_inventory:AddItem(source, cargo.item, cargo.amount, {
+    -- Bei multiStop: pro Stop nur 1 Item, nicht cargo.amount (das ist der Gesamtbetrag)
+    local cargo     = job.jobConfig.cargo
+    local addAmount = job.jobConfig.multiStop and 1 or cargo.amount
+    exports.ox_inventory:AddItem(source, cargo.item, addAmount, {
         jobKey    = job.jobKey,
-        sessionId = job.startTime, -- Prevents duplicate loading
+        sessionId = job.startTime,
     })
 
     TriggerClientEvent(MT.JOB_CARGO_LOADED, source, {
         cargoLoaded = job.cargoLoaded,
         stopsDone   = job.stopsDone,
         stopCount   = job.jobConfig.stopCount,
+        multiStop   = job.jobConfig.multiStop, -- Client braucht dieses Flag
     })
 end
 
@@ -370,7 +372,7 @@ end
 function JobModule.Init()
     RegisterNetEvent("mt:job:listRequest", OnJobListRequest)
     RegisterNetEvent(MT.JOB_REQUEST, OnJobRequest)
-    RegisterNetEvent("mt:job:cargoLoaded", OnCargoLoaded)
+    RegisterNetEvent(MT.JOB_CARGO_LOADED, OnCargoLoaded)
     RegisterNetEvent(MT.JOB_COMPLETE, OnJobComplete)
     RegisterNetEvent(MT.JOB_CANCEL, OnJobCancel)
 

@@ -22,6 +22,7 @@ AddEventHandler("onClientResourceStart", function(resourceName)
     _SupplyChainModule.Init()
     _TownBonusModule.Init()
     _HudModule.Init()
+    _AdminClient.Init()
 
     print("[MT] ✓ Alle Client-Module gestartet")
 end)

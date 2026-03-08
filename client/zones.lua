@@ -1,81 +1,89 @@
 -- ============================================================
 --  client/zones.lua
---  Erstellt alle Zonen aus Config.Zones via ox_lib,
---  registriert ox_target Punkte und feuert lokale
---  Enter/Exit Events für andere Module.
+--  Erstellt alle Zonen aus Config.Zones via ox_lib.
+--
+--  Interaktion: E-Taste via eigenem Key-Thread (kein ox_target
+--  für Flächen-Zonen – addLocalEntity erwartet ein Entity, nicht
+--  ein Zone-Objekt).
 --
 --  Andere Module hören auf:
 --    AddEventHandler(MT.ZONE_ENTER, function(zoneName, zoneData) end)
 --    AddEventHandler(MT.ZONE_EXIT,  function(zoneName) end)
 -- ============================================================
 
-local ZoneModule = {}
+local ZoneModule  = {}
 
--- Aktive ox_lib Zone-Objekte: [zoneName] = zoneObject
--- Wird beim Resource-Stop zum Aufräumen verwendet
-local activeZones = {}
+local activeZones = {}   -- [zoneName] = zoneObject (zum Aufräumen)
+
+-- Aktuell betretene Zone (für E-Key-Thread)
+local inZone      = false
+local inZoneName  = nil
+local inZoneData  = nil
 
 -- ────────────────────────────────────────────────────────────
---  Interne Helfer
+--  E-Key Thread
+--  Läuft immer, ist aber fast kostenlos wenn keine Zone aktiv.
 -- ────────────────────────────────────────────────────────────
 
--- Baut die onEnter/onExit Callbacks für eine Zone
+CreateThread(function()
+    while true do
+        if inZone and inZoneData and inZoneData.targets then
+            -- E = Control 38
+            if IsControlJustPressed(0, 38) then
+                -- Erste Aktion der ersten Target-Definition auslösen
+                local fired = false
+                for _, targetKey in ipairs(inZoneData.targets) do
+                    local targetDef = Config.Targets[targetKey]
+                    if targetDef and targetDef[1] then
+                        TriggerEvent(targetDef[1].event, inZoneName, inZoneData)
+                        fired = true
+                        break
+                    end
+                end
+            end
+            Wait(0)   -- aktiv wenn in Zone
+        else
+            Wait(300) -- idle wenn nicht in Zone
+        end
+    end
+end)
+
+-- ────────────────────────────────────────────────────────────
+--  Zone-Callbacks
+-- ────────────────────────────────────────────────────────────
+
 local function MakeCallbacks(zoneName, zoneData)
     return {
         onEnter = function(self)
+            inZone     = true
+            inZoneName = zoneName
+            inZoneData = zoneData
+
             TriggerEvent(MT.ZONE_ENTER, zoneName, zoneData)
 
-            -- Kleine Marker-Nachricht nur bei interaktiven Zonen
-            if zoneData.label and not zoneData.bonusZone then
-                lib.showTextUI(("[E] %s"):format(zoneData.label), {
+            -- TextUI nur bei interaktiven Zonen (mit Targets)
+            if zoneData.targets and #zoneData.targets > 0 and not zoneData.bonusZone then
+                -- Label der ersten Aktion anzeigen
+                local label = zoneData.label or "Interagieren"
+                local targetDef = Config.Targets[zoneData.targets[1]]
+                if targetDef and targetDef[1] and targetDef[1].label then
+                    label = targetDef[1].label
+                end
+                lib.showTextUI(("[E] %s"):format(label), {
                     position = "left-center",
-                    icon     = "fas fa-map-marker-alt",
+                    icon     = "fas fa-hand-pointer",
                 })
             end
         end,
         onExit = function(self)
+            inZone     = false
+            inZoneName = nil
+            inZoneData = nil
+
             TriggerEvent(MT.ZONE_EXIT, zoneName)
             lib.hideTextUI()
         end,
     }
-end
-
--- Registriert ox_target Einträge für eine Zone
--- Unterstützt Box-, Sphere- und PolyZonen
-local function RegisterTargets(zoneName, zoneData, zoneObj)
-    if not zoneData.targets or #zoneData.targets == 0 then return end
-
-    -- Alle ox_target Aktionen dieser Zone zusammensammeln
-    local options = {}
-    for _, targetKey in ipairs(zoneData.targets) do
-        local targetDef = Config.Targets[targetKey]
-        if targetDef then
-            for _, action in ipairs(targetDef) do
-                -- Event-Handler: feuert lokales Event mit Zone-Kontext
-                local actionCopy = {
-                    name     = action.name .. "_" .. zoneName,
-                    label    = action.label,
-                    icon     = action.icon,
-                    onSelect = function()
-                        TriggerEvent(action.event, zoneName, zoneData)
-                    end,
-                }
-                -- Level-Sperre wenn Zone ein minLevel definiert
-                if zoneData.minLevel then
-                    actionCopy.canInteract = function()
-                        local level = exports["motortown"]:GetLevel()
-                        return level >= zoneData.minLevel
-                    end
-                end
-                table.insert(options, actionCopy)
-            end
-        end
-    end
-
-    if #options == 0 then return end
-
-    -- ox_target Zone-Target (nutzt intern die Zonen-Grenzen)
-    exports.ox_target:addLocalEntity(zoneObj, options)
 end
 
 -- ────────────────────────────────────────────────────────────
@@ -85,125 +93,68 @@ end
 local creators = {}
 
 creators["box"] = function(zoneName, zoneData)
-    local callbacks = MakeCallbacks(zoneName, zoneData)
-    local zone = lib.zones.box({
+    local cb = MakeCallbacks(zoneName, zoneData)
+    return lib.zones.box({
         coords   = zoneData.coords,
         size     = zoneData.size,
         rotation = zoneData.rotation or 0,
         debug    = false,
-        onEnter  = callbacks.onEnter,
-        onExit   = callbacks.onExit,
+        onEnter  = cb.onEnter,
+        onExit   = cb.onExit,
     })
-    return zone
 end
 
 creators["sphere"] = function(zoneName, zoneData)
-    local callbacks = MakeCallbacks(zoneName, zoneData)
-    local zone = lib.zones.sphere({
+    local cb = MakeCallbacks(zoneName, zoneData)
+    return lib.zones.sphere({
         coords  = zoneData.coords,
-        radius  = zoneData.radius,
+        radius  = zoneData.radius or 3.0,
         debug   = false,
-        onEnter = callbacks.onEnter,
-        onExit  = callbacks.onExit,
+        onEnter = cb.onEnter,
+        onExit  = cb.onExit,
     })
-    return zone
 end
 
 creators["poly"] = function(zoneName, zoneData)
-    local callbacks = MakeCallbacks(zoneName, zoneData)
-    local zone = lib.zones.poly({
+    local cb = MakeCallbacks(zoneName, zoneData)
+    return lib.zones.poly({
         points    = zoneData.points,
         thickness = zoneData.thickness or 4.0,
         debug     = false,
-        onEnter   = callbacks.onEnter,
-        onExit    = callbacks.onExit,
+        onEnter   = cb.onEnter,
+        onExit    = cb.onExit,
     })
-    return zone
-end
-
--- ────────────────────────────────────────────────────────────
---  ox_target für Box / Sphere Typen
---  (PolyZones bekommen kein addZone target – zu groß)
--- ────────────────────────────────────────────────────────────
-
-local function AddZoneTarget(zoneName, zoneData)
-    if not zoneData.targets or #zoneData.targets == 0 then return end
-    if zoneData.type == "poly" then return end -- Poly: nur Enter/Exit
-
-    local options = {}
-    for _, targetKey in ipairs(zoneData.targets) do
-        local targetDef = Config.Targets[targetKey]
-        if targetDef then
-            for _, action in ipairs(targetDef) do
-                table.insert(options, {
-                    name        = action.name .. "_" .. zoneName,
-                    label       = action.label,
-                    icon        = action.icon,
-                    onSelect    = function()
-                        TriggerEvent(action.event, zoneName, zoneData)
-                    end,
-                    canInteract = zoneData.minLevel and function()
-                        return exports["motortown"]:GetLevel() >= zoneData.minLevel
-                    end or nil,
-                })
-            end
-        end
-    end
-
-    if #options == 0 then return end
-
-    -- Für Box-Zonen: addBoxZone
-    if zoneData.type == "box" then
-        exports.ox_target:addBoxZone({
-            coords   = zoneData.coords,
-            size     = zoneData.size,
-            rotation = zoneData.rotation or 0,
-            debug    = false,
-            options  = options,
-        })
-        -- Für Sphere-Zonen: addSphereZone
-    elseif zoneData.type == "sphere" then
-        exports.ox_target:addSphereZone({
-            coords  = zoneData.coords,
-            radius  = math.min(zoneData.radius, 5.0), -- target radius kleiner als zone
-            debug   = false,
-            options = options,
-        })
-    end
 end
 
 -- ────────────────────────────────────────────────────────────
 --  Öffentliche API
 -- ────────────────────────────────────────────────────────────
 
--- Gibt die Zone-Config für einen Namen zurück
 function ZoneModule.GetZoneData(zoneName)
     return Config.Zones[zoneName]
 end
 
--- Gibt alle Zonen eines bestimmten Typs zurück (z.B. alle bonusZones)
 function ZoneModule.GetZonesByFlag(flag)
     local result = {}
     for name, data in pairs(Config.Zones) do
-        if data[flag] then
-            result[name] = data
-        end
+        if data[flag] then result[name] = data end
     end
     return result
 end
 
--- Gibt alle Zonen zurück, die einen bestimmten jobType haben
 function ZoneModule.GetZoneForJobType(jobType)
     for name, data in pairs(Config.Zones) do
-        if data.jobType == jobType then
-            return name, data
-        end
+        if data.jobType == jobType then return name, data end
     end
     return nil, nil
 end
 
+function ZoneModule.GetCurrentZone()
+    return inZoneName, inZoneData
+end
+
 -- ────────────────────────────────────────────────────────────
---  Init: Alle Zonen aus Config erstellen
+--  Init
 -- ────────────────────────────────────────────────────────────
 
 function ZoneModule.Init()
@@ -215,10 +166,8 @@ function ZoneModule.Init()
             local ok, zoneOrErr = pcall(creator, zoneName, zoneData)
             if ok and zoneOrErr then
                 activeZones[zoneName] = zoneOrErr
-                AddZoneTarget(zoneName, zoneData)
                 count = count + 1
             else
-                -- Fehler beim Erstellen einer Zone sollen andere nicht blockieren
                 print(("[MT] WARNUNG: Zone '%s' konnte nicht erstellt werden: %s")
                     :format(zoneName, tostring(zoneOrErr)))
             end
@@ -228,18 +177,70 @@ function ZoneModule.Init()
         end
     end
 
-    -- Aufräumen wenn Resource gestoppt wird
+    -- ── Live Zone-Update vom Admin-System ──────────────────
+    RegisterNetEvent("mt:admin:zoneUpdate", function(payload)
+        if not payload or not payload.key then return end
+        local key = payload.key
+
+        -- Alte Zone entfernen falls vorhanden
+        if activeZones[key] then
+            activeZones[key]:remove()
+            activeZones[key] = nil
+        end
+
+        -- Falls gerade in dieser Zone → raus
+        if inZoneName == key then
+            inZone     = false
+            inZoneName = nil
+            inZoneData = nil
+            lib.hideTextUI()
+        end
+
+        if payload.deleted then
+            -- Zone wurde gelöscht → Config ebenfalls entfernen
+            if Config.Zones then Config.Zones[key] = nil end
+            print(("[MT][Admin] Zone '%s' live entfernt"):format(key))
+            return
+        end
+
+        -- Neue/geänderte Zone erstellen
+        local zd = payload.data
+        if not zd then return end
+
+        -- JSON-Koordinaten zurück in vec3
+        if zd.coords and type(zd.coords) == "table" then
+            zd.coords = vec3(zd.coords.x, zd.coords.y, zd.coords.z)
+        end
+        if zd.size and type(zd.size) == "table" then
+            zd.size = vec3(zd.size.x, zd.size.y, zd.size.z)
+        end
+
+        -- In lokale Config schreiben
+        if Config.Zones then Config.Zones[key] = zd end
+
+        local creator = creators[zd.type]
+        if creator then
+            local ok, zoneOrErr = pcall(creator, key, zd)
+            if ok and zoneOrErr then
+                activeZones[key] = zoneOrErr
+                print(("[MT][Admin] Zone '%s' live aktualisiert"):format(key))
+            else
+                print(("[MT][Admin] Zone '%s' Live-Update fehlgeschlagen: %s"):format(key, tostring(zoneOrErr)))
+            end
+        end
+    end)
+
     AddEventHandler("onResourceStop", function(resourceName)
         if resourceName ~= GetCurrentResourceName() then return end
-        for _, zone in pairs(activeZones) do
-            zone:remove()
-        end
+        for _, zone in pairs(activeZones) do zone:remove() end
         activeZones = {}
+        lib.hideTextUI()
     end)
 
     exports("GetZoneData", ZoneModule.GetZoneData)
     exports("GetZonesByFlag", ZoneModule.GetZonesByFlag)
     exports("GetZoneForJobType", ZoneModule.GetZoneForJobType)
+    exports("GetCurrentZone", ZoneModule.GetCurrentZone)
 
     print(("[MT] ZoneModule initialisiert – %d Zonen erstellt"):format(count))
 end

@@ -214,7 +214,7 @@ local function StartLoading(zoneName, zoneData)
         return
     end
 
-    TriggerServerEvent("mt:job:cargoLoaded", { zone = zoneName })
+    TriggerServerEvent(MT.JOB_CARGO_LOADED, { zone = zoneName })
 end
 
 -- ────────────────────────────────────────────────────────────
@@ -306,7 +306,20 @@ local function OnCargoLoaded(data)
     if not currentJob then return end
     currentJob.cargoLoaded = data.cargoLoaded
 
-    -- Pickup-Blip entfernen, Delivery-Blip setzen
+    if data.multiStop and not data.cargoLoaded then
+        -- Zwischenstopp: Spieler muss zurück zur Pickup-Zone für den nächsten Stop
+        lib.notify({
+            title       = ("✅ Stop %d/%d erledigt"):format(data.stopsDone, data.stopCount),
+            description = "Fahre zurück zur Ladezone für den nächsten Stop.",
+            type        = "success",
+            duration    = 5000,
+        })
+        -- Pickup-Blip bleibt, Wegpunkt zurück zur Pickup-Zone setzen
+        SetWaypointToZone(currentJob.pickupZone)
+        return
+    end
+
+    -- Letzter Stop (oder kein multiStop): Pickup-Blip entfernen, Delivery setzen
     if activeBlips.pickup and DoesBlipExist(activeBlips.pickup) then
         RemoveBlip(activeBlips.pickup)
         activeBlips.pickup = nil
@@ -317,14 +330,14 @@ local function OnCargoLoaded(data)
         activeBlips.delivery = CreateBlip(
             deliveryZone.coords,
             477,
-            5, -- gelb
+            5,
             ("Liefern: %s"):format(currentJob.label)
         )
         SetWaypointToZone(currentJob.deliveryZone)
     end
 
     local msg = data.multiStop
-        and ("Stop %d/%d abgeschlossen"):format(data.stopsDone, data.stopCount)
+        and ("Alle %d Stops erledigt – fahre zum Ablieferort!"):format(data.stopCount)
         or "Cargo geladen – fahre zum Ablieferort!"
 
     lib.notify({ title = "✅ Cargo geladen", description = msg, type = "success" })
@@ -363,7 +376,9 @@ local function OnJobCancel()
     currentJob = nil
 
     lib.notify({ title = "Job abgebrochen", type = "warning" })
-    TriggerEvent(MT.JOB_CANCEL)
+    -- KEIN TriggerEvent(MT.JOB_CANCEL) hier! Das wäre ein Infinite Loop,
+    -- weil dieser Handler selbst via RegisterNetEvent auf MT.JOB_CANCEL hört.
+    -- Das HUD bekommt das NetEvent vom Server direkt via AddEventHandler.
 end
 
 -- Server schickt Validierungsfeedback (Fehler oder Job-Liste)

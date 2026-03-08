@@ -11,17 +11,20 @@
 -- ============================================================
 
 CreateThread(function()
-    -- Kurze Wartezeit bis oxmysql bereit ist
     Wait(1000)
 
-    _PlayerModule.Init()
-    _VehicleModule.Init()
-    _JobModule.Init()
-    _CompanyModule.Init()
-    _SupplyChainModule.Init()
-    _TownBonusModule.Init()
+    -- AdminModule zuerst: lädt Admin-Cache UND Config-Overrides aus DB
+    -- Alle anderen Module starten erst danach, damit sie die überschriebene Config sehen
+    _AdminModule.Init(function()
+        _PlayerModule.Init()
+        _VehicleModule.Init()
+        _JobModule.Init()
+        _CompanyModule.Init()
+        _SupplyChainModule.Init()
+        _TownBonusModule.Init()
 
-    print("[MT] ✓ Alle Server-Module gestartet")
+        print("[MT] ✓ Alle Server-Module gestartet")
+    end)
 end)
 
 -- ────────────────────────────────────────────────────────────
